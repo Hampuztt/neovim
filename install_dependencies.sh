@@ -69,6 +69,13 @@ else
     echo "The Neovim npm package is already installed."
 fi
 
+if ! npm list -g tree-sitter-cli &>/dev/null; then
+    echo "Installing the tree-sitter-cli package..."
+    npm install -g tree-sitter-cli
+else
+    echo "The treesitter npm package is already installed."
+fi
+
 # Install Python 3 and pip
 if ! command -v python3 &>/dev/null; then
     echo "Installing Python 3..."
