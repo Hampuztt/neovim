@@ -1,4 +1,10 @@
 vim.g.mapleader = " "
+
+-- lua
+vim.keymap.set("n", "<leader><leader>x", "<cmd>source %<CR>")
+vim.keymap.set("n", "<leader>x", ":.lua<CR>")
+vim.keymap.set("v", "<leader>x", ":.lua<CR>")
+
 vim.keymap.set("n", "<leader>o", vim.cmd.Ex)
 
 vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv")
@@ -10,20 +16,27 @@ vim.keymap.set("n", "<C-u>", "<C-u>zz")
 vim.keymap.set("n", "n", "nzzzv")
 vim.keymap.set("n", "N", "Nzzzv")
 
--- vim.keymap.set({ "n", "x" }, "<leader>p", [["0p]], { desc = "paste from yank register" })
--- Yank into system clipboard
-vim.keymap.set({'n', 'v'}, '<leader>y', '"+y') -- yank motion
-vim.keymap.set({'n', 'v'}, '<leader>Y', '"+Y') -- yank line
-
--- Delete into system clipboard
-vim.keymap.set({'n', 'v'}, '<leader>d', '"+d') -- delete motion
-vim.keymap.set({'n', 'v'}, '<leader>D', '"+D') -- delete line
 
 -- Paste from system clipboard
-vim.keymap.set('n', '<leader>p', '"+p')  -- paste after cursor
-vim.keymap.set('n', '<leader>P', '"+P')  -- paste before cursor
+vim.keymap.set({ "n", "x" }, "<leader>p", '"+p', { desc = "Paste from system clipboard" })
+vim.keymap.set({ "n", "x" }, "<leader>P", '"+P', { desc = "Paste before cursor from system clipboard" })
 
 
+vim.keymap.set({ "n", "x" }, "<leader>d", '"_d', { desc = "Delete into void register" })
+vim.keymap.set({ "n", "x" }, "<leader>D", '"_D', { desc = "Delete until end of line into void register" })
+vim.keymap.set("n", "<leader>DD", '"_dd', { desc = "Delete entire line into void register" })
+
+vim.keymap.set({"n", "v"}, "<leader>y", [["+y]])
+vim.keymap.set("n", "<leader>Y", [["+Y]])
+
+-- Delete into system clipboard
+--vim.keymap.set({'n', 'v'}, '<leader>d', '"+d') -- delete motion
+--vim.keymap.set({'n', 'v'}, '<leader>D', '"+D') -- delete line
+
+
+-- vim.keymap.set({ "n", "x" }, "<leader>p", '"+p', { desc = "Paste from system clipboard" })
+
+vim.keymap.set("n", "<leader>s", [[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><Left>]])
 
 --vim.keymap.set('n', '<C-h>', '<C-w>h')  -- Faster navigation
 --vim.keymap.set('n', '<C-j>', '<C-w>j')  -- Faster navigation
@@ -83,5 +96,13 @@ end)
 vim.keymap.set('n', '<F6>', function()
     vim.cmd("lua require('cmp').setup.buffer({ enabled = false })")
 end)
+
+vim.api.nvim_create_autocmd("TextYankPost", {
+    desc = 'Highlight when yanking (copying) text',
+    group = vim.api.nvim_create_augroup('kickstart-highlight-yank', {clear = true}),
+    callback = function()
+        vim.highlight.on_yank({ timeout = 75})
+    end,
+})
 
 

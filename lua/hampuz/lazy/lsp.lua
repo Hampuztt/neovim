@@ -15,6 +15,13 @@ return {
 
     config = function()
         local cmp = require('cmp')
+
+        cmp.setup {
+            experimental = {
+                ghost_text = false,
+            },
+        }
+
         local cmp_lsp = require("cmp_nvim_lsp")
         local capabilities = vim.tbl_deep_extend(
             "force",
@@ -25,36 +32,46 @@ return {
         require("fidget").setup({})
         require("mason").setup()
         require("mason-lspconfig").setup({
+            vim.keymap.set("n", "<space>=", function() vim.lsp.buf.format() end),
+
             ensure_installed = {
                 "lua_ls",
                 "rust_analyzer",
-                "bashls",
                 "clangd",
-                "ruff"
             },
             handlers = {
                 function(server_name) -- default handler (optional)
-
                     require("lspconfig")[server_name].setup {
                         capabilities = capabilities,
                         on_attach = function(client, bufnr)
                             local opts = { noremap = true, silent = true, buffer = bufnr }
                             local keymap = vim.keymap.set
-                            keymap("n", "gD", vim.lsp.buf.declaration, opts)        -- Go to declaration
-                            keymap("n", "gd", vim.lsp.buf.definition, opts)         -- Go to definition
-                            keymap("n", "K", vim.lsp.buf.hover, opts)               -- Hover documentation
-                            keymap("n", "gi", vim.lsp.buf.implementation, opts)     -- Go to implementation
-                            keymap("n", "gr", vim.lsp.buf.references, opts)         -- Show references
-                            keymap("n", "<leader>ca", vim.lsp.buf.code_action, opts)-- Code actions
-                            keymap("n", "<F2>", vim.lsp.buf.rename, opts)     -- Rename symbol
-                            keymap("n", "<leader>D", vim.lsp.buf.type_definition, opts) -- Go to type definition
-                            keymap("n", "[d", vim.diagnostic.goto_prev, opts)       -- Go to previous diagnostic
-                            keymap("n", "]d", vim.diagnostic.goto_next, opts)       -- Go to next diagnostic
-                            keymap("n", "<leader>e", vim.diagnostic.open_float, opts) -- Show diagnostics in float
-                            keymap("n", "<leader>q", vim.diagnostic.setloclist, opts) -- Add diagnostics to loclist
-                    end,
+                            keymap("n", "gD", vim.lsp.buf.declaration, opts)                                            -- Go to declaration
+                            keymap("n", "gd", vim.lsp.buf.definition, opts)                                             -- Go to definition
+                            keymap("n", "K", vim.lsp.buf.hover, opts)                                                   -- Hover documentation
+                            keymap("n", "gi", vim.lsp.buf.implementation, opts)                                         -- Go to implementation
+                            keymap("n", "gr", vim.lsp.buf.references, opts)                                             -- Show references
+                            keymap("n", "<leader>ca", vim.lsp.buf.code_action, opts)                                    -- Code actions
+                            keymap("n", "<F2>", vim.lsp.buf.rename, opts)                                               -- Rename symbol
+                            keymap("n", "<leader>D", vim.lsp.buf.type_definition, opts)                                 -- Go to type definition
+                            keymap("n", "[d", vim.diagnostic.goto_prev, opts)                                           -- Go to previous diagnostic
+                            keymap("n", "]d", vim.diagnostic.goto_next, opts)                                           -- Go to next diagnostic
+                            keymap("n", "<leader>e", vim.diagnostic.open_float, opts)                                   -- Show diagnostics in float
+                            keymap("n", "<leader>q", vim.diagnostic.setloclist, opts)                                   -- Add diagnostics to loclist
+                            keymap("n", "<leader>ca", vim.lsp.buf.code_action, opts)                                    -- Show code actions
+                            keymap("n", "<leader>fs", require('telescope.builtin').lsp_dynamic_workspace_symbols, opts) -- Find all workspace symbols dynamically
+                            keymap("n", "<leader>fd", require('telescope.builtin').lsp_document_symbols, opts)          -- Search document symbols
+                            keymap("n", "<leader>wa", vim.lsp.buf.add_workspace_folder, opts)                           -- Add workspace folder
+                            keymap("n", "<leader>wr", vim.lsp.buf.remove_workspace_folder, opts)                        -- Remove workspace folder
+                            keymap("n", "<leader>wl", function()
+                                local folders = vim.lsp.buf.list_workspace_folders()
+                                vim.api.nvim_echo({ { table.concat(folders, "\n"), "Normal" } }, false, {})
+                            end, opts)
+                            keymap("n", "gh", ":ClangdSwitchSourceHeader<CR>", opts)
+                        end,
                     }
                 end,
+
 
                 ["lua_ls"] = function()
                     local lspconfig = require("lspconfig")
@@ -73,6 +90,7 @@ return {
         })
 
         local cmp_select = { behavior = cmp.SelectBehavior.Select }
+
 
         cmp.setup({
             snippet = {
