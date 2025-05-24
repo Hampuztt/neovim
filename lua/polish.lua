@@ -43,3 +43,16 @@ vim.keymap.set("n", "Q", "<nop>")
 vim.keymap.set("n", "<leader>rr", "<cmd>AstroReload<cr>", { desc = "Reload AstroNvim config" })
 
 vim.opt.clipboard = ""
+
+vim.api.nvim_create_autocmd({ "InsertEnter" }, {
+  callback = function()
+    vim.opt_local.cursorline = false
+  end,
+})
+
+vim.api.nvim_create_autocmd({ "InsertLeave" }, {
+  callback = function()
+    vim.opt_local.cursorline = true
+  end,
+})
+
