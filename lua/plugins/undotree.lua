@@ -1,5 +1,5 @@
 return {
-    "mbbill/undotree",
+    "mbbill/undotree", enabled = false,
     config = function()
         -- Optional: Automatically enable persistent undo
         vim.o.undofile = true
