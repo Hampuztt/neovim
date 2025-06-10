@@ -9,14 +9,12 @@ return {
         large_buf = { size = 1024 * 256, lines = 10000 }, -- set global limits for large files for disabling features like treesitter
         -- autopairs = true, -- enable autopairs at start
         cmp = true, -- enable completion at start
-        diagnostics = { virtual_text = true, virtual_lines = false }, -- diagnostic settings on startup
         highlighturl = true, -- highlight URLs at start
         notifications = true, -- enable notifications at start
       },
       -- Diagnostics configuration (for vim.diagnostics.config({...})) when diagnostics are on
       diagnostics = {
         virtual_text = true,
-        underline = true,
       },
       -- passed to `vim.filetype.add`
       filetypes = {
@@ -40,7 +38,7 @@ return {
           signcolumn = "yes", -- sets vim.opt.signcolumn to yes
           wrap = false, -- sets vim.opt.wrap
           clipboard = "",
-          scrolloff = 23,
+          scrolloff = 20,
 
           --   opt = {
           --      showtabline =0,
@@ -61,6 +59,7 @@ return {
           ["<Leader>fs"] = false,
           -- ["<Leader>p"] = false,
           --          ["<leader>p"] = false,      -- remove <leader>p group and all nested bindings
+          ["<Leader>h"] = false,
           ["<Leader>pi"] = false,
           ["<Leader>ps"] = false,
           ["<Leader>pa"] = false,

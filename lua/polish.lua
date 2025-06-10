@@ -1,12 +1,10 @@
 vim.keymap.set("n", "<leader>o", "<CMD>Oil<CR>", { desc = "Open Oil" })
-
-vim.diagnostic.config { virtual_lines = true, virtual_text = false }
 vim.keymap.set("n", "<leader>q", "<cmd>q<cr>", { desc = "Quit window" })
-vim.o.scrolloff = 23
+vim.o.scrolloff = 20
 
 -- run files with leader x
 vim.keymap.set("n", "<leader><leader>x", "<cmd>source %<CR>")
-vim.keymap.set("n", "<leader>x", ":.lua<CR>")
+vim.keymap.set("n", "<leader>x", ":source %<CR>")
 vim.keymap.set("v", "<leader>x", ":.lua<CR>")
 
 vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv")
@@ -18,6 +16,8 @@ vim.keymap.set("n", "<C-d>", "<C-d>zz")
 vim.keymap.set("n", "<C-u>", "<C-u>zz")
 vim.keymap.set("n", "n", "nzzzv")
 vim.keymap.set("n", "N", "Nzzzv")
+
+vim.keymap.set("n", "<C-;>", "<cmd>:w<CR>")
 
 -- Paste from system clipboard
 vim.keymap.set({ "n", "x" }, "<leader>p", '"+p', { desc = "Paste from system clipboard" })

@@ -1,5 +1,3 @@
-if true then return {} end -- WARN: REMOVE THIS LINE TO ACTIVATE THIS FILE
-
 -- Customize Mason
 
 ---@type LazySpec
@@ -25,4 +23,29 @@ return {
       },
     },
   },
+
+{
+  "mfussenegger/nvim-dap",
+  config = function()
+    local dap = require("dap")
+
+    dap.adapters.cpp = {
+      type = 'executable',
+      command = 'gdb',
+      args = { '-i', 'dap' },
+    }
+
+    dap.configurations.cpp = {
+      {
+        name = "Attach to Running Lidar Node",
+        type = "cpp",
+        request = "attach",
+        pid = require('dap.utils').pick_process,
+        cwd = vim.fn.getcwd(),
+      },
+    }
+
+    dap.configurations.c = dap.configurations.cpp
+  end,
+}
 }

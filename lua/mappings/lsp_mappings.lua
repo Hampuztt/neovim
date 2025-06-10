@@ -43,7 +43,7 @@ return {
       mappings = {
         n = {
 
-          gh = {
+          ["<Leader>gh"] = {
             "<cmd>ClangdSwitchSourceHeader<CR>",
             desc = "Switch between source/header (Clangd)",
           },
@@ -85,7 +85,7 @@ return {
             desc = "Show diagnostics (float)",
           },
           ["<leader>fs"] = {
-            function() require("snacks.picker").lsp_symbols() end,
+            function() require("snacks.picker").lsp_workspace_symbols() end,
             desc = "Find workspace symbols",
           },
           ["<leader>fd"] = {

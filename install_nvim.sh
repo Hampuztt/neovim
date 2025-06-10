@@ -3,7 +3,7 @@
 # Define the local installation directory
 INSTALL_DIR="$HOME/.local/bin"
 NVIM_RUNTIME_DIR="$HOME/.local/share/nvim"
-NVIM_BINARY_URL="https://github.com/neovim/neovim/releases/latest/download/nvim-linux64.tar.gz"
+NVIM_BINARY_URL="https://github.com/neovim/neovim/releases/download/v0.11.2/nvim-linux-x86_64.tar.gz"
 
 # Ensure the installation directories exist
 mkdir -p "$INSTALL_DIR"

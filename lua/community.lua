@@ -7,6 +7,7 @@ return {
   { import = "astrocommunity.colorscheme.tokyonight-nvim" },
   { import = "astrocommunity.colorscheme.tokyodark-nvim" },
   { import = "astrocommunity.recipes.disable-tabline" },
+  { import = "astrocommunity.utility.lua-json5" },
   -- { import = "astrocommunity.recipes.diagnostic-virtual-lines-current-line" },
   -- import/override with your plugins folder
 }
