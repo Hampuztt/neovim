@@ -68,6 +68,9 @@ return {
           ["<Leader>pU"] = false,
           ["<Leader>pM"] = false,
           ["<Leader>pm"] = false,
+          ["<Leader>c"] = false,
+          ["<Leader>C"] = false,
+
 
           ["<leader>p"] = { '"+p', desc = "Paste from system clipboard" },
           ["<leader>P"] = { '"+P', desc = "Paste from system clipboard" },
@@ -94,7 +97,16 @@ return {
 
           -- setting a mapping to false will disable it
           -- ["<C-S>"] = false,
+          ["<Leader>ll"] = { "<cmd>LspLog<cr>", desc = "Show LSP logs" }, -- change description but the same command
+        -- ["<Leader>ll"] = {
+        --   cond = function()
+        --     return false
+        --   end,
+        -- },
         },
+        v = {
+          ["<Leader>s"] = { "<cmd>'<,'>sort<CR>", desc = "Sort marked lines" }, -- change description but the same command
+        }
       },
     },
   },

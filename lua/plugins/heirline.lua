@@ -4,6 +4,8 @@ return {
     local status = require "astroui.status"
 
     opts.statusline = { -- statusline
+      condition = function() return vim.fn.mode() ~= "c" end,
+      -- hl        = { fg = "fg", bg = "bg" },
       hl = { fg = "fg", bg = "bg" },
       status.component.mode(),
       status.component.git_branch(),

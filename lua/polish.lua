@@ -1,5 +1,7 @@
 vim.keymap.set("n", "<leader>o", "<CMD>Oil<CR>", { desc = "Open Oil" })
 vim.keymap.set("n", "<leader>q", "<cmd>q<cr>", { desc = "Quit window" })
+
+-- vim.keymap.set("n", "<C-;>", "<cmd>:w<CR>")
 vim.o.scrolloff = 20
 
 -- run files with leader x
@@ -17,7 +19,6 @@ vim.keymap.set("n", "<C-u>", "<C-u>zz")
 vim.keymap.set("n", "n", "nzzzv")
 vim.keymap.set("n", "N", "Nzzzv")
 
-vim.keymap.set("n", "<C-;>", "<cmd>:w<CR>")
 
 -- Paste from system clipboard
 vim.keymap.set({ "n", "x" }, "<leader>p", '"+p', { desc = "Paste from system clipboard" })
@@ -55,4 +56,7 @@ vim.api.nvim_create_autocmd({ "InsertLeave" }, {
     vim.opt_local.cursorline = true
   end,
 })
+
+vim.opt.swapfile = false
+-- vim.lsp.set_log_level("debug")
 
