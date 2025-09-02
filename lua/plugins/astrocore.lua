@@ -70,7 +70,37 @@ return {
           ["<Leader>pm"] = false,
           ["<Leader>c"] = false,
           ["<Leader>C"] = false,
+          ["<Leader>lD"] = false,
 
+          ["<Leader>lI"] = false, -- None-ls Info
+          ["K"] = false, -- Hover Document
+          ["<Leader>lf"] = false, -- Format Document
+          ["<Leader>lS"] = false, -- Symbols Outline
+          ["gl"] = false, -- Line Diagnostics
+          ["<Leader>ld"] = false,
+          ["<C-w>d"] = false,
+          ["gra"] = false, -- Code Actions
+          ["<Leader>la"] = false,
+          ["<Leader>lA"] = false, -- Source Code Actions
+          ["<Leader>lh"] = false, -- Signature Help
+          ["grn"] = false, -- Rename
+          ["<Leader>lr"] = false,
+          ["<Leader>ls"] = false, -- Document Symbols
+          ["<Leader>lG"] = false, -- Workspace Symbols
+          ["]d"] = false, -- Diagnostic Next
+          ["[d"] = false, -- Diagnostic Previous
+          ["]e"] = false, -- Diagnostic Error Next
+          ["[e"] = false, -- Diagnostic Error Previous
+          ["]w"] = false, -- Diagnostic Warning Next
+          ["[w"] = false, -- Diagnostic Warning Previous
+          ["]y"] = false, -- Document Symbol Next
+          ["[y"] = false, -- Document Symbol Previous
+          ["gO"] = false, -- Document Symbol
+          ["gy"] = false, -- Type Definition
+          ["gd"] = false, -- Definition
+          ["gri"] = false, -- Implementation
+          ["grr"] = false, -- References
+          ["<Leader>lR"] = false,
 
           ["<leader>p"] = { '"+p', desc = "Paste from system clipboard" },
           ["<leader>P"] = { '"+P', desc = "Paste from system clipboard" },
@@ -97,16 +127,15 @@ return {
 
           -- setting a mapping to false will disable it
           -- ["<C-S>"] = false,
-          ["<Leader>ll"] = { "<cmd>LspLog<cr>", desc = "Show LSP logs" }, -- change description but the same command
-        -- ["<Leader>ll"] = {
-        --   cond = function()
-        --     return false
-        --   end,
-        -- },
+          -- ["<Leader>ll"] = {
+          --   cond = function()
+          --     return false
+          --   end,
+          -- },
         },
         v = {
           ["<Leader>s"] = { "<cmd>'<,'>sort<CR>", desc = "Sort marked lines" }, -- change description but the same command
-        }
+        },
       },
     },
   },
@@ -146,6 +175,48 @@ return {
         -- or leave it empty to use the default settings
         -- refer to the configuration section below
       },
+    },
+  },
+  {
+    "folke/which-key.nvim",
+    opts = {
+      -- type false | "classic" | "modern" | "helix"
+      ["<leader>gl"] = {},
+      win = {
+        -- don't allow the popup to overlap with the cursor
+        no_overlap = true,
+        -- width = 1,
+        -- height = { min = 4, max = 25 },
+        -- col = 0,
+        -- row = 0,
+        -- col = vim.o.columns,
+        -- anchor = "NE", -- optional: anchor top-right corner
+        -- anchor = "NE",  -- optional: anchor top-right corner
+        -- row = math.huge,
+        -- border = "none",
+        padding = { 1, 2 }, -- extra window padding [top/bottom, right/left]
+        title = true,
+        title_pos = "center",
+        zindex = 500,
+        -- Additional vim.wo and vim.bo options
+        bo = {},
+        wo = {
+          -- winblend = 10, -- value between 0-100 0 for fully opaque and 100 for fully transparent
+        },
+      },
+      --     name = "+group gitlab",
+      --     desc = "meow",
+      --     r = { name = "+review" },
+      --     m = { name = "+merge requests" },
+      --     c = { name = "+comments" },
+      --     d = { name = "+discussion" },
+      --     l = { name = "+labels" },
+      --     R = { name = "+reviewers" },
+      --     a = { name = "+assignees" },
+      --     s = { name = "+settings/debug" },
+      --     p = { name = "+pipeline" },
+      --   },
+      -- },
     },
   },
 }

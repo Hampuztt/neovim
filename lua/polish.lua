@@ -58,5 +58,6 @@ vim.api.nvim_create_autocmd({ "InsertLeave" }, {
 })
 
 vim.opt.swapfile = false
+-- vim.lsp.enable({"pyrefly"})
 -- vim.lsp.set_log_level("debug")
 

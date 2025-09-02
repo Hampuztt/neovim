@@ -6,8 +6,6 @@ return {
       mappings = {
         -- first key is the mode
         n = {
-
-          ["<Leader>ll"] = { "<cmd>LspLog<CR>", desc = "Show lsp log" },
           -- second key is the lefthand side of the map
           -- mappings seen under group name "Buffer"
           ["<Leader>bn"] = { "<cmd>tabnew<cr>", desc = "New tab" },
@@ -44,7 +42,8 @@ return {
     opts = {
       mappings = {
         n = {
-          ["<Leader>gh"] = {
+
+          gh = {
             "<cmd>ClangdSwitchSourceHeader<CR>",
             desc = "Switch between source/header (Clangd)",
           },
@@ -81,12 +80,8 @@ return {
             function() vim.lsp.buf.incoming_calls() end,
             desc = "Go to type definition",
           },
-          ["<leader>e"] = {
-            function() vim.diagnostic.open_float() end,
-            desc = "Show diagnostics (float)",
-          },
           ["<leader>fs"] = {
-            function() require("snacks.picker").lsp_workspace_symbols() end,
+            function() require("snacks.picker").lsp_symbols() end,
             desc = "Find workspace symbols",
           },
           ["<leader>fd"] = {
@@ -96,19 +91,6 @@ return {
           ["<leader>="] = {
             function() vim.lsp.buf.format() end,
             desc = "Format document",
-          },
-          ["<leader>af"] = {
-            function()
-              -- 1) Save:
-              vim.cmd "write"
-              -- 2) Run fixer, silencing messages:
-              vim.cmd "silent! !ansible-lint % --fix"
-              -- 3) Reload buffer:
-              vim.cmd "edit!"
-              -- 4) Inform you:
-              vim.notify("ansible-lint --fix applied", vim.log.levels.INFO)
-            end,
-            desc = "Format with ansible-lint --fix",
           },
         },
       },

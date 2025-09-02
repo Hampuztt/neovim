@@ -37,12 +37,17 @@ return {
     },
     -- enable servers that you already have installed without mason
     servers = {
+      "pyrefly",
       -- "pyright"
     },
     -- customize language server configuration options passed to `lspconfig`
     ---@diagnostic disable: missing-fields
     config = {
-      -- clangd = { capabilities = { offsetEncoding = "utf-8" } },
+      pyrefly = {
+        cmd = { vim.fn.stdpath("data") .. "/mason/bin/pyrefly", "lsp" },
+        filetypes = { "python" },
+        root_dir = require("lspconfig.util").root_pattern(".git", "pyproject.toml", "setup.py"),
+      },
     },
     -- customize how language servers are attached
     handlers = {
@@ -83,6 +88,8 @@ return {
     mappings = {
       n = {
         -- a `cond` key can provided as the string of a server capability to be required to attach, or a function with `client` and `bufnr` parameters from the `on_attach` that returns a boolean
+
+        -- ["<Leader>li"] = { cond = function() return true end, }, -- LSP Info
         gD = {
           function() vim.lsp.buf.declaration() end,
           desc = "Declaration of current symbol",
@@ -95,11 +102,11 @@ return {
             return client.supports_method "textDocument/semanticTokens/full" and vim.lsp.semantic_tokens ~= nil
           end,
         },
-        ["<Leader>ll"] = {
-          cond = function()
-            return false
-          end,
-        },
+        ["<Leader>ll"] = { "<cmd>LspLog<cr>", desc = "Show LSP logs" }, -- change description but the same command
+        ["<Leader>lL"] = { cond = function() return false end },
+        -- ["<Leader>ll"] = {
+        --   cond = function() return false end,
+        -- },
       },
     },
     -- A custom `on_attach` function to be run after the default `on_attach` function
