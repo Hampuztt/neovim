@@ -9,6 +9,7 @@ return {
   { import = "astrocommunity.pack.ansible" },
   { import = "astrocommunity.pack.bash" },
   { import = "astrocommunity.docker.lazydocker" },
+  { import = "astrocommunity.pack.docker" },
   { import = "astrocommunity.pack.html-css" },
   { import = "astrocommunity.pack.typescript" },
   -- { import = "astrocommunity.workflow.precognition-nvim" },

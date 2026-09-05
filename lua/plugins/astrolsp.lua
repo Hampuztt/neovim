@@ -48,6 +48,7 @@ return {
         filetypes = { "python" },
         root_dir = require("lspconfig.util").root_pattern(".git", "pyproject.toml", "setup.py"),
       },
+
     },
     -- customize how language servers are attached
     handlers = {
