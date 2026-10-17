@@ -1,120 +1,43 @@
--- AstroLSP allows you to customize the features in AstroNvim's LSP configuration engine
--- Configuration documentation can be found with `:h astrolsp`
--- NOTE: We highly recommend setting up the Lua Language Server (`:LspInstall lua_ls`)
---       as this provides autocomplete and documentation while editing
+-- Language servers and formatting. LSP keybindings are in keymaps.lua.  Docs: `:h astrolsp`
+--
+-- Language servers you install with :Mason start automatically (add them to mason.lua so a new
+-- machine gets them too). Per-server settings go in `config` below.
+
+-- LSP log (view it with <Leader>ll). "WARN" records errors, crashes and server error output.
+-- Use "DEBUG" to see every message between Neovim and the servers (the log gets big fast).
+vim.lsp.log.set_level "WARN"
 
 ---@type LazySpec
 return {
   "AstroNvim/astrolsp",
   ---@type AstroLSPOpts
   opts = {
-    -- Configuration table of features provided by AstroLSP
     features = {
-      codelens = true, -- enable/disable codelens refresh on start
-      inlay_hints = false, -- enable/disable inlay hints on start
-      semantic_tokens = true, -- enable/disable semantic token highlighting
+      codelens = true,
+      inlay_hints = false, -- <Leader>uH toggles them
+      semantic_tokens = true,
     },
-    -- customize lsp formatting options
     formatting = {
-      -- control auto formatting on save
-      format_on_save = {
-        enabled = false, -- enable or disable format on save globally
-        allow_filetypes = { -- enable format on save for specified filetypes only
-          -- "go",
-        },
-        ignore_filetypes = { -- disable format on save for specified filetypes
-          -- "python",
-        },
-      },
-      disabled = { -- disable formatting capabilities for the listed language servers
-        -- disable lua_ls formatting capability if you want to use StyLua to format your lua code
-        -- "lua_ls",
-      },
-      timeout_ms = 3000, -- default format timeout
-      -- filter = function(client) -- fully override the default formatting function
-      --   return true
-      -- end
+      format_on_save = { enabled = false }, -- format by hand with <Leader>=
+      timeout_ms = 3000,
     },
-    -- enable servers that you already have installed without mason
-    servers = {
-      "pyrefly",
-      -- "pyright"
-    },
-    -- customize language server configuration options passed to `lspconfig`
-    ---@diagnostic disable: missing-fields
+    -- Settings passed to `vim.lsp.config` for each server (see `:h vim.lsp.Config`)
     config = {
-      pyrefly = {
-        cmd = { vim.fn.stdpath("data") .. "/mason/bin/pyrefly", "lsp" },
-        filetypes = { "python" },
-        root_dir = require("lspconfig.util").root_pattern(".git", "pyproject.toml", "setup.py"),
+      -- "*" applies to every server. Python files get two servers (basedpyright + ruff); make them
+      -- count characters the same way so positions (rename, references, ...) always line up.
+      ["*"] = { capabilities = { general = { positionEncodings = { "utf-16" } } } },
+      basedpyright = {
+        settings = {
+          basedpyright = {
+            -- "standard" = normal type errors. basedpyright's default ("recommended") is much stricter.
+            analysis = { typeCheckingMode = "standard" },
+          },
+        },
       },
-
     },
-    -- customize how language servers are attached
+    -- Turn a server off even though Mason has it installed: `name = false`
     handlers = {
-      -- a function without a key is simply the default handler, functions take two parameters, the server name and the configured options table for that server
-      -- function(server, opts) require("lspconfig")[server].setup(opts) end
-
-      -- the key is the server that is being setup with `lspconfig`
-      -- rust_analyzer = false, -- setting a handler to false will disable the set up of that language server
-      -- pyright = function(_, opts) require("lspconfig").pyright.setup(opts) end -- or a custom handler function can be passed
+      pyrefly = false, -- was buggy; delete this line (and add it to mason.lua) to use it again
     },
-    -- Configure buffer local auto commands to add when attaching a language server
-    autocmds = {
-      -- first key is the `augroup` to add the auto commands to (:h augroup)
-      lsp_codelens_refresh = {
-        -- Optional condition to create/delete auto command group
-        -- can either be a string of a client capability or a function of `fun(client, bufnr): boolean`
-        -- condition will be resolved for each client on each execution and if it ever fails for all clients,
-        -- the auto commands will be deleted for that buffer
-        cond = "textDocument/codeLens",
-        -- cond = function(client, bufnr) return client.name == "lua_ls" end,
-        -- list of auto commands to set
-        {
-          -- events to trigger
-          event = { "InsertLeave", "BufEnter" },
-          -- the rest of the autocmd options (:h nvim_create_autocmd)
-          desc = "Refresh codelens (buffer)",
-          callback = function(args)
-            if require("astrolsp").config.features.codelens then vim.lsp.codelens.refresh { bufnr = args.buf } end
-          end,
-        },
-      },
-    },
-    -- Configuration of mappings added when attaching a language server during the core `on_attach` function
-    -- The first key into the table is the vim map mode (`:h map-modes`), and the value is a table of entries to be passed to `vim.keymap.set` (`:h vim.keymap.set`):
-    --   - The key is the first parameter or the vim mode (only a single mode supported) and the value is a table of keymaps within that mode:
-    --     - The first element with no key in the table is the action (the 2nd parameter) and the rest of the keys/value pairs are options for the third parameter.
-    --       There is also a special `cond` key which can either be a string of a language server capability or a function with `client` and `bufnr` parameters that returns a boolean of whether or not the mapping is added.
-    mappings = {
-      n = {
-        -- a `cond` key can provided as the string of a server capability to be required to attach, or a function with `client` and `bufnr` parameters from the `on_attach` that returns a boolean
-
-        -- ["<Leader>li"] = { cond = function() return true end, }, -- LSP Info
-        gD = {
-          function() vim.lsp.buf.declaration() end,
-          desc = "Declaration of current symbol",
-          cond = "textDocument/declaration",
-        },
-        ["<Leader>uY"] = {
-          function() require("astrolsp.toggles").buffer_semantic_tokens() end,
-          desc = "Toggle LSP semantic highlight (buffer)",
-          cond = function(client)
-            return client.supports_method "textDocument/semanticTokens/full" and vim.lsp.semantic_tokens ~= nil
-          end,
-        },
-        ["<Leader>ll"] = { "<cmd>LspLog<cr>", desc = "Show LSP logs" }, -- change description but the same command
-        ["<Leader>lL"] = { cond = function() return false end },
-        -- ["<Leader>ll"] = {
-        --   cond = function() return false end,
-        -- },
-      },
-    },
-    -- A custom `on_attach` function to be run after the default `on_attach` function
-    -- takes two parameters `client` and `bufnr`  (`:h lspconfig-setup`)
-    on_attach = function(client, bufnr)
-      -- this would disable semanticTokensProvider for all clients
-      -- client.server_capabilities.semanticTokensProvider = nil
-    end,
   },
 }

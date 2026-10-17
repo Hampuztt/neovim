@@ -1,33 +1,28 @@
+-- Starts lazy.nvim (the plugin manager) with AstroNvim, AstroCommunity packs and your plugins.
+-- Your own settings are in lua/plugins/ (one file per topic) and lua/community.lua.
+
 require("lazy").setup({
   {
     "AstroNvim/AstroNvim",
-    version = "^5", -- Remove version tracking to elect for nightly AstroNvim
+    version = "^6", -- AstroNvim major version. After changing it, run `:Lazy update` twice.
     import = "astronvim.plugins",
-    opts = { -- AstroNvim options must be set here with the `import` key
-      mapleader = " ", -- This ensures the leader key must be configured before Lazy is set up
-      maplocalleader = ",", -- This ensures the localleader key must be configured before Lazy is set up
-      icons_enabled = true, -- Set to false to disable icons (if no Nerd Font is available)
-      pin_plugins = nil, -- Default will pin plugins when tracking `version` of AstroNvim, set to true/false to override
-      update_notifications = true, -- Enable/disable notification about running `:Lazy update` twice to update pinned plugins
+    opts = { -- AstroNvim options must be set here
+      mapleader = " ", -- <Leader> is Space
+      maplocalleader = ",",
+      icons_enabled = true, -- set to false if you don't have a Nerd Font
+      pin_plugins = nil, -- default: pin plugins to versions tested with this AstroNvim release
+      update_notifications = true, -- remind you to run `:Lazy update` twice when pinned versions change
     },
   },
-  { import = "mappings" },
- { import = "community" },
+  { import = "community" },
   { import = "plugins" },
 } --[[@as LazySpec]], {
-  -- Configure any other `lazy.nvim` configuration options here
-  install = { colorscheme = { "astrotheme", "habamax", "catppuccin" } },
+  install = { colorscheme = { "catppuccin", "astrotheme", "habamax" } },
   ui = { backdrop = 100 },
   performance = {
     rtp = {
-      -- disable some rtp plugins, add more to your liking
-      disabled_plugins = {
-        "gzip",
-        "netrwPlugin",
-        "tarPlugin",
-        "tohtml",
-        "zipPlugin",
-      },
+      -- built-in Vim plugins you don't need
+      disabled_plugins = { "gzip", "netrwPlugin", "tarPlugin", "tohtml", "zipPlugin" },
     },
   },
 } --[[@as LazyConfig]])
