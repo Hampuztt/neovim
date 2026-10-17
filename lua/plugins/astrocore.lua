@@ -35,6 +35,9 @@ return {
         swapfile = false,
       },
       g = { -- vim.g.<name>
+        -- WSL: use win32yank.exe for the system clipboard. It turns Windows line endings into
+        -- Linux ones when you paste (no ^M), and back when you copy. Only if it's installed.
+        clipboard = (vim.fn.has "wsl" == 1 and vim.fn.executable "win32yank.exe" == 1) and "win32yank" or nil,
       },
     },
 
