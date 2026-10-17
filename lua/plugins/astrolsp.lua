@@ -20,6 +20,7 @@ return {
     formatting = {
       format_on_save = { enabled = false }, -- format by hand with <Leader>=
       timeout_ms = 3000,
+      disabled = { "lua_ls" }, -- servers that shouldn't format (Lua is formatted by stylua)
     },
     -- Settings passed to `vim.lsp.config` for each server (see `:h vim.lsp.Config`)
     config = {
@@ -38,6 +39,7 @@ return {
     -- Turn a server off even though Mason has it installed: `name = false`
     handlers = {
       pyrefly = false, -- was buggy; delete this line (and add it to mason.lua) to use it again
+      stylua = false, -- stylua already runs through none-ls (lua pack); don't start it twice
     },
   },
 }

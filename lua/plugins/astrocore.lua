@@ -39,6 +39,25 @@ return {
     },
 
     autocmds = {
+      -- Notice when the open file is changed by another program (git, a formatter, ...).
+      -- Unmodified buffers then reload on their own (Neovim's `autoread`) and you get a notification.
+      -- AstroNvim only checks when the terminal regains focus, which tmux doesn't report by default.
+      check_file_changed_on_disk = {
+        {
+          event = { "BufEnter", "CursorHold" },
+          desc = "Check if the file changed on disk",
+          callback = function()
+            if vim.bo.buftype == "" and vim.fn.getcmdwintype() == "" then vim.cmd "checktime" end
+          end,
+        },
+        {
+          event = "FileChangedShellPost",
+          desc = "Say when a file was reloaded because it changed on disk",
+          callback = function(args)
+            vim.notify(vim.fn.fnamemodify(args.file, ":t") .. " changed on disk and was reloaded", vim.log.levels.WARN)
+          end,
+        },
+      },
       -- Hide the cursorline highlight while typing in insert mode.
       cursorline_in_insert_mode = {
         {

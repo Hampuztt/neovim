@@ -32,6 +32,47 @@ All keys are in `lua/plugins/keymaps.lua`, in three tables:
 Your keys always win over AstroNvim's defaults. `<Leader>` is Space; press it and wait to
 see what's available, or use `<Leader>fk` to search all keys.
 
+## Dependencies
+
+Programs this config expects on the system. `:checkhealth astronvim` and `:Mason` show what's
+missing. Ubuntu package names are in brackets.
+
+### Required
+
+| What | Why |
+| --- | --- |
+| Neovim **0.12+** | nvim-treesitter (main branch) needs 0.12; `<Leader>rr` uses `:restart` |
+| git | plugin manager, fugitive, gitsigns |
+| a [Nerd Font](https://www.nerdfonts.com) in the terminal | icons |
+| curl, tar, gzip, unzip | Mason and treesitter downloads |
+| a C compiler [`gcc`] | building treesitter parsers |
+| ripgrep [`ripgrep`] | `<Leader>fw` grep and the file picker |
+| Node.js + npm | about half the language servers Mason installs (html, css, json, yaml, bash, TypeScript, docker compose, ansible, ...) |
+| Python 3 with venv + pip [`python3-venv python3-pip`] | Mason installs basedpyright and ansible-lint into Python venvs |
+
+Mason installs the rest itself: lua-language-server, basedpyright, ruff, clangd, stylua,
+tree-sitter-cli (treesitter needs 0.26.1+), and the tools of the AstroCommunity packs.
+
+### For specific features
+
+| What | Used by |
+| --- | --- |
+| tmux + [tpm](https://github.com/tmux-plugins/tpm) with `christoomey/vim-tmux-navigator` in `tmux.conf` | `<C-h/j/k/l>` across tmux panes |
+| xclip or xsel (X11), wl-clipboard (Wayland) | `<Leader>y` / `<Leader>p` system clipboard |
+| python3 | `<F5>` on Python files |
+| g++ | `<F5>` on C++ files |
+| `compile_commands.json` | clangd in C++/ROS2 projects. colcon: `colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON` (clangd finds `build/compile_commands.json` on its own) |
+| lazygit | `<Leader>gg` |
+| lazydocker | `<Leader>td` (from the lazydocker community pack) |
+
+### Optional
+
+| What | Used by |
+| --- | --- |
+| fd [`fd-find`] | faster file picker (ripgrep is used otherwise) |
+| gdu, btm | AstroNvim's `<Leader>tu` (disk usage) and `<Leader>tt` (system monitor) |
+| `set -g focus-events on` in `tmux.conf` | instant notice when a file changes on disk (otherwise it's noticed within a moment, on the next cursor pause) |
+
 ## Updating
 
 - Plugins: `:Lazy update` (run it twice when AstroNvim says pinned versions changed)

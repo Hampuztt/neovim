@@ -16,6 +16,42 @@
 
 local function harpoon() return require "harpoon" end
 
+-- <Leader>x: run the current Lua/Vim file. Other files would be read as Vim commands and fail.
+local function source_this_file()
+  if vim.bo.filetype ~= "lua" and vim.bo.filetype ~= "vim" then
+    vim.notify("<Leader>x only sources Lua and Vim files", vim.log.levels.WARN)
+    return
+  end
+  vim.cmd "source %"
+end
+
+-- <Leader>rf: reopen the file from disk (asks first if you'd lose unsaved changes).
+local function reload_file()
+  if vim.bo.modified and vim.fn.confirm("Discard unsaved changes and reload from disk?", "&Yes\n&No", 2) ~= 1 then
+    return
+  end
+  vim.cmd "edit!"
+end
+
+-- <Leader>rd: your unsaved changes as a side-by-side diff against the file on disk (q closes it).
+local function diff_unsaved()
+  if not vim.bo.modified then return vim.notify("No unsaved changes", vim.log.levels.INFO) end
+  local file_win, filetype, name = vim.api.nvim_get_current_win(), vim.bo.filetype, vim.fn.expand "%:t"
+  vim.cmd "diffthis | vertical new | setlocal buftype=nofile bufhidden=wipe noswapfile"
+  vim.cmd "read ++edit # | 0delete _ | diffthis"
+  local disk_buf = vim.api.nvim_get_current_buf()
+  vim.api.nvim_buf_set_name(disk_buf, "[on disk] " .. name)
+  vim.bo.filetype, vim.bo.modifiable = filetype, false
+  vim.keymap.set("n", "q", "<Cmd>close<CR>", { buffer = disk_buf, desc = "Close the diff" })
+  vim.api.nvim_create_autocmd("BufWipeout", { -- turn diff mode off again in your file's window
+    buffer = disk_buf,
+    once = true,
+    callback = function()
+      if vim.api.nvim_win_is_valid(file_win) then vim.api.nvim_win_call(file_win, vim.cmd.diffoff) end
+    end,
+  })
+end
+
 local general = {
   n = {
     -- Group names which-key shows for a prefix (a key with only a `desc`)
@@ -111,9 +147,11 @@ local general = {
     -- Run / reload
     ["<F5>"] = { function() require "run_file"() end, desc = "Run this file (Python / C++)" },
     ["<F6>"] = { function() require("astrocore.toggles").buffer_cmp() end, desc = "Toggle autocompletion (buffer)" },
-    ["<Leader>x"] = { "<Cmd>source %<CR>", desc = "Source this file" },
-    ["<Leader><Leader>x"] = { "<Cmd>source %<CR>", desc = "Source this file" },
-    ["<Leader>rr"] = { "<Cmd>AstroReload<CR>", desc = "Reload config (experimental, restart if a key acts up)" },
+    ["<Leader>x"] = { function() source_this_file() end, desc = "Source this file (Lua / Vim)" },
+    ["<Leader><Leader>x"] = { function() source_this_file() end, desc = "Source this file (Lua / Vim)" },
+    ["<Leader>rf"] = { function() reload_file() end, desc = "Reload file from disk" },
+    ["<Leader>rd"] = { function() diff_unsaved() end, desc = "Diff unsaved changes vs file on disk" },
+    ["<Leader>rr"] = { "<Cmd>restart<CR>", desc = "Restart Neovim (reloads config, keeps open files)" },
   },
 
   x = {
@@ -125,6 +163,13 @@ local general = {
     ["<Leader>p"] = { '"+p', desc = "Paste from system clipboard" },
     ["<Leader>P"] = { '"+P', desc = "Paste from system clipboard (before cursor)" },
     -- ["<Leader>d"] = { '"_d', desc = "Delete without overwriting your last yank" },
+  },
+
+  t = { -- in terminals (e.g. the <F5> output), the same split/pane keys as in normal mode
+    ["<C-h>"] = { "<Cmd>TmuxNavigateLeft<CR>", desc = "Go to left split/pane" },
+    ["<C-j>"] = { "<Cmd>TmuxNavigateDown<CR>", desc = "Go to split/pane below" },
+    ["<C-k>"] = { "<Cmd>TmuxNavigateUp<CR>", desc = "Go to split/pane above" },
+    ["<C-l>"] = { "<Cmd>TmuxNavigateRight<CR>", desc = "Go to right split/pane" },
   },
 
   -- Insert mode: jj, jk and kk leave insert mode. That's set in better-escape.lua, not here,
@@ -155,7 +200,10 @@ local lsp = {
     ["K"] = { function() vim.lsp.buf.hover() end, desc = "Hover documentation" },
     ["<F2>"] = { function() vim.lsp.buf.rename() end, desc = "Rename symbol" },
     ["<Leader>ca"] = { function() vim.lsp.buf.code_action() end, desc = "Code actions" },
-    ["<Leader>="] = { function() vim.lsp.buf.format() end, desc = "Format file" },
+    ["<Leader>="] = { -- uses the `formatting` settings in astrolsp.lua
+      function() vim.lsp.buf.format(require("astrolsp").format_opts) end,
+      desc = "Format file",
+    },
     ["<Leader>fs"] = { function() require("snacks").picker.lsp_symbols() end, desc = "Find symbols in this file" },
     ["<Leader>fd"] = { function() require("snacks").picker.lsp_definitions() end, desc = "Find definitions" },
   },
@@ -197,8 +245,6 @@ local disabled = {
     "[e",
     "]w",
     "[w",
-    "]d", -- Neovim's next/previous diagnostic
-    "[d",
     "gra", -- Neovim's LSP keys (they would make your `gr` wait for more keys)
     "grn",
     "grr",
