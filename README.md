@@ -15,6 +15,7 @@
 | file picker (Snacks) settings            | `lua/plugins/snacks.lua`               |
 | language packs (AstroCommunity)          | `lua/community.lua`                    |
 | what `<F5>` runs per filetype            | `lua/run_file.lua`                     |
+| branch review (`<Leader>gm`)             | `lua/git_review.lua`                   |
 | my own snippets                          | `luasnippets/<filetype>.lua`           |
 | AstroNvim version                        | `lua/lazy_setup.lua`                   |
 
@@ -72,6 +73,21 @@ tree-sitter-cli (treesitter needs 0.26.1+), and the tools of the AstroCommunity 
 | fd [`fd-find`] | faster file picker (ripgrep is used otherwise) |
 | gdu, btm | AstroNvim's `<Leader>tu` (disk usage) and `<Leader>tt` (system monitor) |
 | `set -g focus-events on` in `tmux.conf` | instant notice when a file changes on disk (otherwise it's noticed within a moment, on the next cursor pause) |
+
+## Tests
+
+`tests/run.sh` tries the features of this config with your real config (about 10 seconds):
+editing keys, the find/grep pickers, git history/blame/compare, the branch review (`<Leader>gm`),
+undoable discards in the git status window, and the CHANGED ON DISK badge.
+
+```bash
+tests/run.sh               # everything
+tests/run.sh review disk   # some groups: editing pickers git review discard disk
+```
+
+Each group runs in its own headless Neovim in throwaway git repos, so your files, repos, clipboard
+and recent-files list aren't touched. The tests are in `tests/features.lua`. With the dotfiles
+repo, `~/dotfiles/tests/check.sh` runs these too, plus Neovim inside a real tmux.
 
 ## Updating
 

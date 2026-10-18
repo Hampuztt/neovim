@@ -43,7 +43,9 @@ return {
 
     autocmds = {
       -- Notice when the open file is changed by another program (git, a formatter, ...).
-      -- Unmodified buffers then reload on their own (Neovim's `autoread`) and you get a notification.
+      -- Without unsaved changes it just reloads (with a notification). With unsaved changes, or if the file
+      -- was deleted, your version is kept and the statusline says CHANGED / DELETED ON DISK until you
+      -- :w! (keep yours) or :e! (take the one on disk). <Leader>rd shows the difference.
       -- AstroNvim only checks when the terminal regains focus, which tmux doesn't report by default.
       check_file_changed_on_disk = {
         {
@@ -54,11 +56,28 @@ return {
           end,
         },
         {
-          event = "FileChangedShellPost",
-          desc = "Say when a file was reloaded because it changed on disk",
+          event = "FileChangedShell",
+          desc = "Reload a file changed on disk, or mark it if you have unsaved changes in it",
           callback = function(args)
-            vim.notify(vim.fn.fnamemodify(args.file, ":t") .. " changed on disk and was reloaded", vim.log.levels.WARN)
+            local name, reason = vim.fn.fnamemodify(args.file, ":t"), vim.v.fcs_reason
+            if reason == "changed" then -- no unsaved changes
+              vim.v.fcs_choice = "reload"
+              vim.notify(name .. " changed on disk and was reloaded", vim.log.levels.WARN)
+            elseif reason == "conflict" or reason == "deleted" then
+              vim.b[args.buf].changed_on_disk = reason == "conflict" and "CHANGED ON DISK" or "DELETED ON DISK"
+              vim.notify(
+                reason == "conflict"
+                    and (name .. " changed on disk, but you have unsaved changes: kept yours. <Leader>rd shows the difference, :w! keeps yours, :e! takes the one on disk")
+                  or (name .. " was deleted on disk. :w writes it back"),
+                vim.log.levels.WARN
+              )
+            end -- "mode" / "time" (only permissions or the timestamp changed): nothing to do
           end,
+        },
+        {
+          event = { "BufReadPost", "BufWritePost" },
+          desc = "Remove the CHANGED ON DISK mark once the buffer and the file match again",
+          callback = function(args) vim.b[args.buf].changed_on_disk = nil end,
         },
       },
       -- Hide the cursorline highlight while typing in insert mode.

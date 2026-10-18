@@ -22,6 +22,15 @@ return {
       padding = { left = 1 },
     }
 
+    -- A red CHANGED ON DISK / DELETED ON DISK while the file no longer matches what you're editing
+    -- (set by the check_file_changed_on_disk autocommands in astrocore.lua)
+    local changed_on_disk = status.component.builder {
+      condition = function() return vim.b.changed_on_disk ~= nil end,
+      provider = function() return " " .. vim.b.changed_on_disk .. " " end,
+      hl = { fg = "bg", bg = "diag_ERROR", bold = true },
+      padding = { left = 1 },
+    }
+
     opts.statusline = {
       hl = { fg = "fg", bg = "bg" },
       condition = function() return vim.fn.mode() ~= "c" end, -- hidden while typing a : command
@@ -29,6 +38,7 @@ return {
       status.component.git_branch(),
       file_folder,
       status.component.file_info { filename = {}, filetype = false },
+      changed_on_disk,
       status.component.git_diff(),
       status.component.fill(),
       status.component.cmd_info(),

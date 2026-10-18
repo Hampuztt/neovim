@@ -15,8 +15,7 @@ local show_details = false
 return {
   {
     "stevearc/oil.nvim",
-    lazy = false, -- so `nvim some/folder` opens Oil
-    dependencies = { { "echasnovski/mini.icons", opts = {} } },
+    lazy = false, -- so `nvim some/folder` opens Oil (its icons come from mini.icons, set up by AstroNvim)
     ---@module 'oil'
     ---@type oil.SetupOpts
     opts = {

@@ -33,13 +33,18 @@ local function reload_file()
   vim.cmd "edit!"
 end
 
--- <Leader>rd: your unsaved changes as a side-by-side diff against the file on disk (q closes it).
+-- <Leader>rd: your unsaved changes as a side-by-side diff against the file on disk.
+-- q in the diff, or <Leader>rd again, closes it.
 local function diff_unsaved()
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do -- already open: close it (only one at a time)
+    if vim.b[buf].on_disk_diff then return vim.api.nvim_buf_delete(buf, { force = true }) end
+  end
   if not vim.bo.modified then return vim.notify("No unsaved changes", vim.log.levels.INFO) end
   local file_win, filetype, name = vim.api.nvim_get_current_win(), vim.bo.filetype, vim.fn.expand "%:t"
   vim.cmd "diffthis | vertical new | setlocal buftype=nofile bufhidden=wipe noswapfile"
   vim.cmd "read ++edit # | 0delete _ | diffthis"
   local disk_buf = vim.api.nvim_get_current_buf()
+  vim.b[disk_buf].on_disk_diff = true
   vim.api.nvim_buf_set_name(disk_buf, "[on disk] " .. name)
   vim.bo.filetype, vim.bo.modifiable = filetype, false
   vim.keymap.set("n", "q", "<Cmd>close<CR>", { buffer = disk_buf, desc = "Close the diff" })
@@ -50,6 +55,50 @@ local function diff_unsaved()
       if vim.api.nvim_win_is_valid(file_win) then vim.api.nvim_win_call(file_win, vim.cmd.diffoff) end
     end,
   })
+end
+
+-- <Leader>fi / <Leader>fI: search the current file's folder (or the folder open in Oil) instead of
+-- the whole project. The picker's title says which folder; <A-u> moves one folder up (see snacks.lua).
+local function in_this_files_folder(picker)
+  local dir = vim.bo.filetype == "oil" and require("oil").get_current_dir() or vim.fn.expand "%:p:h"
+  require("snacks").picker[picker] { cwd = dir }
+end
+
+-- Pick a branch ("git_branches", remote ones too) or commit ("git_log", or "git_log_file" for only the
+-- commits that changed the current file), typing to search names / commit messages, and pass it to
+-- on_pick. (Instead of the pickers' default action, `git checkout`.)
+local function pick_git_ref(source, title, on_pick)
+  -- The current file's repo, which isn't always the one Neovim's working folder is in
+  local root = vim.fn.FugitiveWorkTree()
+  if root == "" then return vim.notify("Not in a git repository", vim.log.levels.WARN) end
+  require("snacks").picker[source] {
+    title = title,
+    cwd = root,
+    all = source == "git_branches" or nil,
+    confirm = function(picker, item)
+      picker:close()
+      if item then on_pick(item.branch or item.commit, root) end
+    end,
+  }
+end
+
+-- <Leader>gB / <Leader>gC: this file side by side with its version on a branch / at a commit
+-- (fugitive's :Gvdiffsplit). :q in the old version closes it.
+local function compare_file_with(ref) vim.cmd("Gvdiffsplit " .. vim.fn.fnameescape(ref)) end
+
+-- <Leader>gm / <Leader>gM: go through every file this branch changed, compared with a branch / commit
+-- (lua/git_review.lua). Pressing it again closes the review.
+local function toggle_review(source, title)
+  local review = require "git_review"
+  if review.is_open() then return review.stop() end
+  pick_git_ref(source, title, review.start)
+end
+
+-- J: join lines, keeping the cursor where it is. A count joins that many lines (3J joins three).
+local function join_lines()
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  vim.cmd("normal! " .. vim.v.count1 .. "J")
+  vim.api.nvim_win_set_cursor(0, cursor)
 end
 
 local general = {
@@ -86,13 +135,16 @@ local general = {
     -- Find things (Snacks picker). Hidden files are included, see snacks.lua.
     ["<Leader>ff"] = { function() require("snacks").picker.files() end, desc = "Find files" },
     ["<Leader>fi"] = {
-      function()
-        local dir = vim.bo.filetype == "oil" and require("oil").get_current_dir() or vim.fn.expand "%:p:h"
-        require("snacks").picker.files { cwd = dir }
-      end,
+      function() in_this_files_folder "files" end,
       desc = "Find files in this file's folder",
     },
     ["<Leader>fw"] = { function() require("snacks").picker.grep() end, desc = "Find words (grep)" },
+    ["<Leader>fI"] = { function() in_this_files_folder "grep" end, desc = "Find words in this file's folder" },
+    ["<Leader>fd"] = {
+      function() require("snacks").picker.diagnostics_buffer() end,
+      desc = "Find diagnostics (this file)",
+    },
+    ["<Leader>fD"] = { function() require("snacks").picker.diagnostics() end, desc = "Find diagnostics (project)" },
     ["<Leader>fb"] = { function() require("snacks").picker.buffers() end, desc = "Find buffers" },
     ["<Leader>fh"] = { function() require("snacks").picker.help() end, desc = "Find help" },
 
@@ -106,11 +158,38 @@ local general = {
     ["<Leader>5"] = { function() harpoon():list():select(5) end, desc = "Harpoon: file 5" },
     ["<Leader>6"] = { function() harpoon():list():select(6) end, desc = "Harpoon: file 6" },
 
-    -- Git (vim-fugitive)
+    -- Git (vim-fugitive, see git.lua). In the status window: - stages/unstages, = shows the diff,
+    -- x or X discards, cc commits, g? lists every key.
     ["<Leader>gs"] = { "<Cmd>vert Git<CR>", desc = "Git status (vertical split)" },
     ["<Leader>gS"] = { "<Cmd>Git<CR>", desc = "Git status (horizontal split)" },
     ["<Leader>gd"] = { "<Cmd>Gvdiffsplit<CR>", desc = "Git diff split" },
-    ["<Leader>gb"] = { "<Cmd>Git blame<CR>", desc = "Git blame" },
+    ["<Leader>gB"] = {
+      function() pick_git_ref("git_branches", "Compare this file with branch", compare_file_with) end,
+      desc = "Compare this file with a branch",
+    },
+    ["<Leader>gC"] = {
+      function() pick_git_ref("git_log_file", "Compare this file with commit", compare_file_with) end,
+      desc = "Compare this file with a commit (that changed it)",
+    },
+    -- Review a branch: the changed files are listed at the bottom, the keys are shown above that list
+    ["<Leader>gm"] = {
+      function() toggle_review("git_branches", "Review this branch against") end,
+      desc = "Review: every file changed vs a branch (again: close)",
+    },
+    ["<Leader>gM"] = {
+      function() toggle_review("git_log", "Review changes since commit") end,
+      desc = "Review: every file changed since a commit (again: close)",
+    },
+    ["]r"] = { function() require("git_review").move(1) end, desc = "Review: next changed file" },
+    ["[r"] = { function() require("git_review").move(-1) end, desc = "Review: previous changed file" },
+    -- Blame. In <Leader>gb's window: <CR> on a line opens the commit that changed it, - shows the
+    -- blame as it was in that commit (step back in time), gq closes it.
+    ["<Leader>gb"] = { "<Cmd>Git blame<CR>", desc = "Git blame (whole file)" },
+    ["<Leader>gl"] = { -- the popup comes from gitsigns
+      function() require("gitsigns").blame_line { full = true } end,
+      desc = "Last change to this line: commit, author, date, message",
+    },
+    ["<Leader>gh"] = { "<Cmd>0Gclog<CR>", desc = "History: every version of this file (]q / [q step through)" },
     ["<Leader>gL"] = { "<Cmd>Git log<CR>", desc = "Git log" },
 
     -- System clipboard (normal yank/paste stays inside Neovim, see `clipboard` in astrocore.lua)
@@ -124,7 +203,7 @@ local general = {
 
     -- Editing
     ["<Leader>s"] = { [[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><Left>]], desc = "Replace word under cursor" },
-    ["J"] = { "mzJ`z", desc = "Join lines (cursor stays put)" },
+    ["J"] = { function() join_lines() end, desc = "Join lines (cursor stays put)" },
     ["<C-d>"] = { "<C-d>zz", desc = "Half page down (centered)" },
     ["<C-u>"] = { "<C-u>zz", desc = "Half page up (centered)" },
     ["n"] = { "nzzzv", desc = "Next match (centered)" },
@@ -150,7 +229,7 @@ local general = {
     ["<Leader>x"] = { function() source_this_file() end, desc = "Source this file (Lua / Vim)" },
     ["<Leader><Leader>x"] = { function() source_this_file() end, desc = "Source this file (Lua / Vim)" },
     ["<Leader>rf"] = { function() reload_file() end, desc = "Reload file from disk" },
-    ["<Leader>rd"] = { function() diff_unsaved() end, desc = "Diff unsaved changes vs file on disk" },
+    ["<Leader>rd"] = { function() diff_unsaved() end, desc = "Diff unsaved changes vs file on disk (toggle)" },
     ["<Leader>rr"] = { "<Cmd>restart<CR>", desc = "Restart Neovim (reloads config, keeps open files)" },
   },
 
@@ -159,6 +238,8 @@ local general = {
     ["K"] = { ":m '<-2<CR>gv=gv", desc = "Move selection up" },
     ["<Leader>s"] = { ":sort<CR>", desc = "Sort selected lines" },
     ["<Leader>x"] = { ":lua<CR>", desc = "Run selected Lua" },
+    ["<Leader>fc"] = { function() require("snacks").picker.grep_word() end, desc = "Find selected text (grep)" },
+    ["<Leader>gl"] = { ":Gclog<CR>", desc = "History: every commit that changed these lines (]q / [q)" },
     ["<Leader>y"] = { '"+y', desc = "Yank to system clipboard" },
     ["<Leader>p"] = { '"+p', desc = "Paste from system clipboard" },
     ["<Leader>P"] = { '"+P', desc = "Paste from system clipboard (before cursor)" },
@@ -178,14 +259,19 @@ local general = {
 
 local lsp = {
   n = {
-    ["gd"] = { function() vim.lsp.buf.definition() end, desc = "Go to definition" },
+    -- gd / gI / gy jump straight there when there's one result, and show a picker when there are several
+    ["gd"] = { function() require("snacks").picker.lsp_definitions() end, desc = "Go to definition" },
     ["gD"] = {
       function() vim.lsp.buf.declaration() end,
       desc = "Go to declaration",
       cond = "textDocument/declaration",
     },
-    ["gi"] = { function() vim.lsp.buf.implementation() end, desc = "Go to implementation" },
-    ["gy"] = { function() vim.lsp.buf.type_definition() end, desc = "Go to type definition" },
+    ["gI"] = { -- capital I: Vim's own gi (continue typing where you last stopped) keeps working
+      function() require("snacks").picker.lsp_implementations() end,
+      desc = "Go to implementation",
+      cond = "textDocument/implementation",
+    },
+    ["gy"] = { function() require("snacks").picker.lsp_type_definitions() end, desc = "Go to type definition" },
     ["gr"] = { function() require("snacks").picker.lsp_references() end, desc = "Show references" },
     ["gh"] = {
       "<Cmd>LspClangdSwitchSourceHeader<CR>",
@@ -205,7 +291,11 @@ local lsp = {
       desc = "Format file",
     },
     ["<Leader>fs"] = { function() require("snacks").picker.lsp_symbols() end, desc = "Find symbols in this file" },
-    ["<Leader>fd"] = { function() require("snacks").picker.lsp_definitions() end, desc = "Find definitions" },
+    ["<Leader>fS"] = {
+      function() require("snacks").picker.lsp_workspace_symbols() end,
+      desc = "Find symbols in the project",
+      cond = "workspace/symbol",
+    },
   },
 }
 
