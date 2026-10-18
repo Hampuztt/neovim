@@ -43,7 +43,7 @@ return {
 
     autocmds = {
       -- Notice when the open file is changed by another program (git, a formatter, ...).
-      -- Without unsaved changes it just reloads (with a notification). With unsaved changes, or if the file
+      -- Without unsaved changes it just reloads, quietly. With unsaved changes, or if the file
       -- was deleted, your version is kept and the statusline says CHANGED / DELETED ON DISK until you
       -- :w! (keep yours) or :e! (take the one on disk). <Leader>rd shows the difference.
       -- AstroNvim only checks when the terminal regains focus, which tmux doesn't report by default.
@@ -60,9 +60,8 @@ return {
           desc = "Reload a file changed on disk, or mark it if you have unsaved changes in it",
           callback = function(args)
             local name, reason = vim.fn.fnamemodify(args.file, ":t"), vim.v.fcs_reason
-            if reason == "changed" then -- no unsaved changes
+            if reason == "changed" then -- no unsaved changes (only seen with 'autoread' off: it reloads itself)
               vim.v.fcs_choice = "reload"
-              vim.notify(name .. " changed on disk and was reloaded", vim.log.levels.WARN)
             elseif reason == "conflict" or reason == "deleted" then
               vim.b[args.buf].changed_on_disk = reason == "conflict" and "CHANGED ON DISK" or "DELETED ON DISK"
               vim.notify(
