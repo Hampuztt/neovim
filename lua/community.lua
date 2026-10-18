@@ -12,6 +12,7 @@ return {
   { import = "astrocommunity.pack.docker" },
   { import = "astrocommunity.pack.html-css" },
   { import = "astrocommunity.pack.typescript" },
+  { import = "astrocommunity.pack.xml" }, -- lemminx: errors, schema completion (formatting is off: astrolsp.lua)
 
   -- tools
   { import = "astrocommunity.docker.lazydocker" },

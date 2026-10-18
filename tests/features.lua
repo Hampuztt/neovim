@@ -114,6 +114,34 @@ local function only() -- back to one window (from a normal window: :only refuses
   vim.cmd "silent! only!"
 end
 
+-- A language server sends a file's errors (or that it has none) after it opens. Note which server
+-- sent them for which buffer, as "<buffer> <server name>".
+local published = {}
+local on_publish = vim.lsp.handlers["textDocument/publishDiagnostics"]
+vim.lsp.handlers["textDocument/publishDiagnostics"] = function(err, result, ctx)
+  local client = vim.lsp.get_client_by_id(ctx.client_id)
+  if result and client then published[vim.uri_to_bufnr(result.uri) .. " " .. client.name] = true end
+  return on_publish(err, result, ctx)
+end
+-- Write a file, open it and wait until the server has checked it. Returns the server (nil if it
+-- didn't start, or didn't check the file).
+local function open_with_server(path, lines, name)
+  write(path, lines)
+  vim.cmd.edit(path)
+  local buf = vim.api.nvim_get_current_buf()
+  local function checked() return published[buf .. " " .. name] end
+  wait(checked, 15000)
+  return checked() and vim.lsp.get_clients({ bufnr = buf, name = name })[1] or nil
+end
+local function diagnostic_lines()
+  return vim.tbl_map(function(d) return d.lnum + 1 end, vim.diagnostic.get(0))
+end
+local function server_errors(name) -- errors from a language server: as messages or as popups
+  local popups = vim.tbl_map(function(n) return n.msg end, Snacks.notifier.get_history { filter = "error" })
+  return vim.fn.execute("messages"):find("LSP%[" .. name .. "%]: Error") ~= nil
+    or table.concat(popups, "\n"):find(name, 1, true) ~= nil
+end
+
 local groups = {}
 
 -- ── Editing keys ───────────────────────────────────────────────────────────────────────────────
@@ -626,6 +654,51 @@ function groups.harpoon()
   vim.cmd.tabclose()
   expect("... and closing it hides it again", vim.o.showtabline, 0)
   check("no errors", no_errors())
+end
+
+-- ── XML (lemminx language server, settings in astrolsp.lua) ────────────────────────────────────
+
+function groups.xml()
+  local dir = tmp .. "/xml"
+  local client =
+    open_with_server(dir .. "/config.xml", { "<config>", '  <server port="8080"/>', "</config>" }, "lemminx")
+  check("lemminx starts in XML files and checks them", client ~= nil)
+  expect("a config file without a schema gets no hint about that", client and diagnostic_lines(), {})
+
+  client = open_with_server(dir .. "/broken.xml", { "<config>", "  <server>", "</config>" }, "lemminx")
+  expect("a tag that isn't closed is an error", client and diagnostic_lines(), { 2 })
+
+  local long = "<note>" .. ("long text "):rep(12) .. "</note>"
+  local unformatted = {
+    "<config>",
+    '  <server host="a"    port="1"/>',
+    "      <logging/>",
+    "",
+    "",
+    "  <db",
+    '    host="a"',
+    '    port="1"/>',
+    "  " .. long,
+    "</config>",
+  }
+  open_with_server(dir .. "/format.xml", unformatted, "lemminx")
+  keys " ="
+  local function lines() return vim.api.nvim_buf_get_lines(0, 0, -1, false) end
+  expect("<Leader>= leaves XML alone (XML formatting is off)", lines(), unformatted)
+  vim.lsp.buf.format { name = "lemminx" } -- what <Leader>= does once it's turned on
+  expect("lemminx formats keeping blank lines and attributes on their own lines, without wrapping", lines(), {
+    "<config>",
+    '  <server host="a" port="1" />',
+    "  <logging />",
+    "",
+    "",
+    "  <db",
+    '    host="a"',
+    '    port="1" />',
+    "  " .. long,
+    "</config>",
+  })
+  check("no errors from lemminx", no_errors() and not server_errors "lemminx")
 end
 
 -- ── Run the group named in $GROUP ──────────────────────────────────────────────────────────────

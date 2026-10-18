@@ -20,7 +20,8 @@ return {
     formatting = {
       format_on_save = { enabled = false }, -- format by hand with <Leader>=
       timeout_ms = 3000,
-      disabled = { "lua_ls" }, -- servers that shouldn't format (Lua is formatted by stylua)
+      -- Servers that shouldn't format. Lua is formatted by stylua. Delete "lemminx" to format XML.
+      disabled = { "lua_ls", "lemminx" },
     },
     -- Settings passed to `vim.lsp.config` for each server (see `:h vim.lsp.Config`)
     config = {
@@ -32,6 +33,50 @@ return {
           basedpyright = {
             -- "standard" = normal type errors. basedpyright's default ("recommended") is much stricter.
             analysis = { typeCheckingMode = "standard" },
+          },
+        },
+      },
+      -- XML (formatting is off: see `disabled` above).
+      -- All settings: https://github.com/redhat-developer/vscode-xml/blob/main/docs/Preferences.md
+      lemminx = {
+        settings = {
+          xml = {
+            -- Most config files have no schema (XSD/DTD); don't put a hint about that on every one.
+            validation = { noGrammar = "ignore" },
+            -- Every format setting must be here: lemminx turns the ones left out off instead of using
+            -- their defaults (with `enabled` left out, formatting breaks and Neovim shows an error).
+            -- These are VS Code's defaults, except maxLineWidth.
+            format = {
+              enabled = true,
+              maxLineWidth = 0, -- don't wrap long lines (default 100): that puts line breaks inside text values
+              splitAttributes = "preserve", -- attributes stay on one line, or one per line, as you wrote them
+              preserveAttributeLineBreaks = true,
+              splitAttributesIndentSize = 2,
+              closingBracketNewLine = false,
+              spaceBeforeEmptyCloseTag = true, -- <tag/> becomes <tag />
+              preservedNewlines = 2, -- keep up to 2 blank lines between tags
+              emptyElements = "ignore", -- <a></a> and <a/> stay as they are
+              enforceQuoteStyle = "ignore",
+              joinContentLines = false,
+              joinCommentLines = false,
+              joinCDATALines = false,
+              xsiSchemaLocationSplit = "onPair",
+              grammarAwareFormatting = true,
+              legacy = false,
+              preserveSpace = { -- elements whose whitespace is left alone
+                "xsl:text",
+                "xsl:comment",
+                "xsl:processing-instruction",
+                "literallayout",
+                "programlisting",
+                "screen",
+                "synopsis",
+                "pre",
+                "xd:pre",
+                "style",
+                "script",
+              },
+            },
           },
         },
       },

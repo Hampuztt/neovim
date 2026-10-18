@@ -78,11 +78,12 @@ tree-sitter-cli (treesitter needs 0.26.1+), and the tools of the AstroCommunity 
 
 `tests/run.sh` tries the features of this config with your real config (about 10 seconds):
 editing keys, the find/grep pickers, git history/blame/compare, the branch review (`<Leader>gm`),
-undoable discards in the git status window, the CHANGED ON DISK badge, and the Harpoon tabs.
+undoable discards in the git status window, the CHANGED ON DISK badge, the Harpoon tabs, and XML
+(lemminx starts, no hint on files without a schema, errors for broken tags, formatting off but working).
 
 ```bash
 tests/run.sh               # everything
-tests/run.sh review disk   # some groups: editing pickers git review discard disk harpoon
+tests/run.sh review disk   # some groups: editing pickers git review discard disk harpoon xml
 ```
 
 Each group runs in its own headless Neovim in throwaway git repos, so your files, repos, clipboard,
