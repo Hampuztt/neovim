@@ -2,7 +2,8 @@
 -- see plugins/keymaps.lua). The changed files go in the quickfix list, and the current one is shown side
 -- by side with its version at the point where your branch split off (git merge-base). That way, changes
 -- made on the other branch after you branched don't show up as if you had undone them.
--- Uncommitted changes and new files you haven't `git add`ed yet are included.
+-- Uncommitted changes and new files you haven't `git add`ed yet are included. Changed submodules aren't
+-- (they can't be shown side by side): the message when the review starts names them.
 
 local M = {}
 -- While a review is open: { ref, base, qf_id, tab, file_win, old_win, old_is_new }
@@ -23,30 +24,40 @@ local function git(root, args)
   return result.stdout
 end
 
--- Quickfix items for every file changed since `base` (renames included) plus untracked new files.
--- user_data.old is the file's path at `base`, or nil for a new file.
+-- Quickfix items for every file changed since `base` (renames included) plus untracked new files, and
+-- the paths of the changed submodules. user_data.old is the file's path at `base`, or nil for a new file.
 local function changed_files(root, base)
-  local items, fields = {}, vim.split(git(root, { "diff", "--name-status", "-z", "-M", base }) or "", "\0")
+  local items, submodules, listed = {}, {}, {}
+  local fields = vim.split(git(root, { "diff", "--raw", "-z", "-M", base }) or "", "\0")
   local i = 1
   while fields[i] and fields[i] ~= "" do
-    local status, path, old = fields[i]:sub(1, 1), fields[i + 1], fields[i + 1]
+    -- ":<old mode> <new mode> <old hash> <new hash> <status>", then the path (renames: old and new path)
+    local old_mode, new_mode, status = fields[i]:match "^:(%d+) (%d+) %S+ %S+ (%u)"
+    local path, old = fields[i + 1], fields[i + 1]
     if status == "R" or status == "C" then
       path, i = fields[i + 2], i + 3
     else
       i = i + 2
     end
-    items[#items + 1] = {
-      filename = root .. "/" .. path,
-      text = (status_names[status] or status) .. (path ~= old and (" from " .. old) or ""),
-      user_data = { old = status ~= "A" and old or nil },
-    }
+    if old_mode == "160000" or new_mode == "160000" then -- a submodule
+      submodules[#submodules + 1] = path
+    else
+      listed[path] = true
+      items[#items + 1] = {
+        filename = root .. "/" .. path,
+        text = (status_names[status] or status) .. (path ~= old and (" from " .. old) or ""),
+        user_data = { old = status ~= "A" and old or nil },
+      }
+    end
   end
   local untracked = git(root, { "ls-files", "--others", "--exclude-standard", "-z" }) or ""
   for _, path in ipairs(vim.split(untracked, "\0", { trimempty = true })) do
-    items[#items + 1] = { filename = root .. "/" .. path, text = "new, not added to git yet", user_data = {} }
+    if not listed[path] then -- (a file you `git rm --cached` is untracked, but already listed as deleted)
+      items[#items + 1] = { filename = root .. "/" .. path, text = "new, not added to git yet", user_data = {} }
+    end
   end
   table.sort(items, function(a, b) return a.filename < b.filename end)
-  return items
+  return items, submodules
 end
 
 -- A window in the review's tab showing a normal file (not the quickfix list, a terminal, Oil, ...)
@@ -119,6 +130,11 @@ end
 
 local function set_hints(win) vim.wo[win].winbar = "%{%v:lua.require'git_review'.winbar()%}" end
 
+local function forget()
+  pcall(vim.api.nvim_del_augroup_by_name, "git_review")
+  review = nil
+end
+
 -- Open = its file list still exists, and its old version or file list is still on screen. A review you
 -- closed by hand (:cclose and :q) counts as closed, so <Leader>gm starts a new one straight away.
 function M.is_open()
@@ -129,7 +145,9 @@ function M.is_open()
       if vim.fn.win_gettype(win) == "quickfix" then return true end
     end
   end
-  M.stop()
+  -- Closed by hand: just forget it, leaving your tabs and windows as they are. (Closing its old version
+  -- already turned diff mode off in the file window: 'diffopt' has "closeoff".)
+  forget()
   return false
 end
 
@@ -139,8 +157,10 @@ function M.start(ref, root)
   if root == "" then return vim.notify("Not in a git repository", vim.log.levels.WARN) end
   local base, err = git(root, { "merge-base", ref, "HEAD" })
   if not base then return vim.notify("Can't compare with " .. ref .. ": " .. err, vim.log.levels.ERROR) end
-  local items = changed_files(root, vim.trim(base))
-  if #items == 0 then return vim.notify("No changes compared with " .. ref) end
+  local items, submodules = changed_files(root, vim.trim(base))
+  local left_out = #submodules > 0 and (" (changed submodules aren't shown: %s)"):format(table.concat(submodules, ", "))
+    or ""
+  if #items == 0 then return vim.notify("No changes compared with " .. ref .. left_out) end
   vim.fn.setqflist({}, " ", { title = "Review vs " .. ref, items = items })
   review = {
     ref = ref,
@@ -158,7 +178,7 @@ function M.start(ref, root)
   })
   vim.cmd "botright copen"
   set_hints(vim.api.nvim_get_current_win())
-  vim.notify(("Reviewing %d changed files vs %s"):format(#items, ref))
+  vim.notify(("Reviewing %d changed files vs %s%s"):format(#items, ref, left_out))
   show(1)
 end
 
@@ -184,8 +204,7 @@ function M.stop()
     close_old()
     vim.cmd.cclose()
   end
-  pcall(vim.api.nvim_del_augroup_by_name, "git_review")
-  review = nil
+  forget()
 end
 
 return M

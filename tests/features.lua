@@ -427,6 +427,15 @@ function groups.review()
   vim.cmd "cclose" -- close the review by hand: the file list, then the old version
   local old_win = window_where(function(buf) return vim.api.nvim_buf_get_name(buf):match "^fugitive://" end)
   if old_win then vim.api.nvim_win_close(old_win, true) end
+  vim.cmd "tabnew"
+  local tab = vim.api.nvim_get_current_tabpage()
+  keys "]r"
+  expect(
+    "]r after that, in another tab, says so and stays in your tab",
+    { last_message(), vim.api.nvim_get_current_tabpage() == tab },
+    { "No review open (<Leader>gm starts one)", true }
+  )
+  vim.cmd "tabclose"
   local picker = open_picker " gm"
   check("a review closed by hand doesn't need <Leader>gm twice", picker ~= nil)
   if picker then close(picker) end
@@ -443,6 +452,30 @@ function groups.review()
   check(
     "... and leaves no empty list window",
     window_where(function(_, w) return vim.fn.win_gettype(w) == "quickfix" end) == nil
+  )
+
+  -- A file taken out of git but still there (git rm --cached), and a submodule moved to a newer commit
+  local lib = new_repo "lib"
+  write(lib .. "/lib.txt", "lib")
+  commit(lib, "lib")
+  local mixed = new_repo "mixed"
+  write(mixed .. "/notes.txt", "notes")
+  git(mixed, { "-c", "protocol.file.allow=always", "submodule", "add", "-q", lib, "lib" })
+  commit(mixed, "base")
+  git(mixed, { "checkout", "-q", "-b", "feature" })
+  git(mixed, { "rm", "-q", "--cached", "notes.txt" })
+  write(mixed .. "/lib/more.txt", "more")
+  commit(mixed .. "/lib", "newer lib")
+  vim.cmd.edit(mixed .. "/notes.txt")
+  picker = open_picker " gm"
+  search(picker, "master")
+  picker:action "confirm"
+  wait(function() return review.is_open() end)
+  expect("a file taken out of git (but still there) is listed once", quickfix_files(), { "notes.txt (deleted)" })
+  expect(
+    "a changed submodule isn't listed, and the message says so",
+    last_message(),
+    "Reviewing 1 changed files vs master (changed submodules aren't shown: lib)"
   )
   check("no errors", no_errors())
 end
