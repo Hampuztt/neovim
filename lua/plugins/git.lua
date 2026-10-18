@@ -36,6 +36,8 @@ local function discard()
   end
   local count = vim.v.count > 0 and tostring(vim.v.count) or ""
   vim.api.nvim_feedkeys(count .. vim.keycode "<Plug>fugitive:X", "mx", false)
+  local undoreload = vim.o.undoreload
+  vim.o.undoreload = -1 -- reloads can be undone in long files too (by default only up to 10000 lines)
   for _, buf in ipairs(bufs) do
     if vim.fn.filereadable(vim.api.nvim_buf_get_name(buf)) == 1 then
       vim.cmd.checktime(buf) -- reload the discarded version (an undoable change)
@@ -44,6 +46,7 @@ local function discard()
       vim.bo[buf].modified = false
     end
   end
+  vim.o.undoreload = undoreload
   if #bufs > 0 then vim.notify "Discarded. To get it back: open the file, press u, then :w" end
 end
 

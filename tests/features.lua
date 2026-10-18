@@ -457,15 +457,21 @@ function groups.discard()
   end
   write(repo .. "/f.txt", numbers)
   write(repo .. "/h.txt", "h original")
+  local long = {} -- longer than Neovim keeps undo for when it reloads a file ('undoreload')
+  for i = 1, 10001 do
+    long[i] = "line " .. i
+  end
+  write(repo .. "/long.txt", long)
   commit(repo, "base")
   vim.fn.chdir(repo) -- :Git in an empty buffer uses the working folder's repo
-  local function reset()
+  local function reset(also) -- also(): more changes before the status window opens
     git(repo, { "checkout", "-q", "--", "." })
     local edited = vim.deepcopy(numbers)
     edited[3], edited[17] = "3 EDIT", "17 EDIT"
     write(repo .. "/f.txt", edited)
     write(repo .. "/h.txt", "h edited")
     write(repo .. "/u.txt", "untracked notes")
+    if also then also() end
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
       if vim.api.nvim_buf_get_name(buf):find(repo, 1, true) then vim.api.nvim_buf_delete(buf, { force = true }) end
     end
@@ -482,6 +488,17 @@ function groups.discard()
   check("x on a file discards its changes", not vim.tbl_contains(read(repo .. "/f.txt"), "3 EDIT"))
   get_back "f.txt"
   check("u (then :w) in the file gets them back", vim.tbl_contains(read(repo .. "/f.txt"), "3 EDIT"))
+
+  reset(function()
+    local edited = vim.deepcopy(long)
+    edited[5] = "line 5 EDIT"
+    write(repo .. "/long.txt", edited)
+  end)
+  vim.fn.search "^M long.txt"
+  keys "x"
+  check("x on a file over 10000 lines discards too", not vim.tbl_contains(read(repo .. "/long.txt"), "line 5 EDIT"))
+  get_back "long.txt"
+  check("... and u still gets it back", vim.tbl_contains(read(repo .. "/long.txt"), "line 5 EDIT"))
 
   reset()
   vim.fn.search "^? u.txt"
