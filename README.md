@@ -11,7 +11,7 @@
 | language servers, formatting             | `lua/plugins/astrolsp.lua`             |
 | tools Mason installs                     | `lua/plugins/mason.lua`                |
 | colorscheme                              | `lua/plugins/astroui.lua`              |
-| statusline                               | `lua/plugins/heirline.lua`             |
+| statusline, Harpoon tabs at the top      | `lua/plugins/heirline.lua`             |
 | file picker (Snacks) settings            | `lua/plugins/snacks.lua`               |
 | language packs (AstroCommunity)          | `lua/community.lua`                    |
 | what `<F5>` runs per filetype            | `lua/run_file.lua`                     |
@@ -78,16 +78,16 @@ tree-sitter-cli (treesitter needs 0.26.1+), and the tools of the AstroCommunity 
 
 `tests/run.sh` tries the features of this config with your real config (about 10 seconds):
 editing keys, the find/grep pickers, git history/blame/compare, the branch review (`<Leader>gm`),
-undoable discards in the git status window, and the CHANGED ON DISK badge.
+undoable discards in the git status window, the CHANGED ON DISK badge, and the Harpoon tabs.
 
 ```bash
 tests/run.sh               # everything
-tests/run.sh review disk   # some groups: editing pickers git review discard disk
+tests/run.sh review disk   # some groups: editing pickers git review discard disk harpoon
 ```
 
-Each group runs in its own headless Neovim in throwaway git repos, so your files, repos, clipboard
-and recent-files list aren't touched. The tests are in `tests/features.lua`. With the dotfiles
-repo, `~/dotfiles/tests/check.sh` runs these too, plus Neovim inside a real tmux.
+Each group runs in its own headless Neovim in throwaway git repos, so your files, repos, clipboard,
+recent-files list and Harpoon marks aren't touched. The tests are in `tests/features.lua`. With
+the dotfiles repo, `~/dotfiles/tests/check.sh` runs these too, plus Neovim inside a real tmux.
 
 ## Updating
 

@@ -546,6 +546,88 @@ function groups.disk()
   check("no errors", no_errors())
 end
 
+-- ── Harpoon files as tabs at the top ───────────────────────────────────────────────────────────
+
+function groups.harpoon()
+  -- Harpoon saves its marks in ~/.local/share/nvim/harpoon. Use a file in the temp folder instead,
+  -- set up before Harpoon loads.
+  local data = dofile(require("lazy.core.config").plugins.harpoon.dir .. "/lua/harpoon/data.lua")
+  data.test.set_fullpath(function() return tmp .. "/harpoon.json" end)
+  package.loaded["harpoon.data"] = data
+
+  local project = tmp .. "/harpoon"
+  for _, name in ipairs { "a.txt", "b.txt", "c.txt", "one/init.lua", "two/init.lua" } do
+    write(project .. "/" .. name, name)
+  end
+  vim.fn.chdir(project)
+  local function open(name) vim.cmd.edit(project .. "/" .. name) end
+  local function in_menu(k) -- edit the <Leader><Tab> menu and save it with :w (it closes a moment later)
+    keys " <Tab>"
+    keys(k)
+    keys ":w<CR>"
+    wait(function() return vim.bo.filetype ~= "harpoon" end)
+  end
+  local function tabs() -- the text of each tab, the highlighted one (the file you're in) in [brackets]
+    local line = vim.api.nvim_eval_statusline(vim.o.tabline, { use_tabline = true, highlights = true })
+    local result = {}
+    for i, hl in ipairs(line.highlights) do
+      local stop = line.highlights[i + 1] and line.highlights[i + 1].start or #line.str
+      local tab = vim.trim(line.str:sub(hl.start + 1, stop))
+      if tab ~= "" then
+        local bold = vim.api.nvim_get_hl(0, { name = hl.groups[#hl.groups], link = false }).bold
+        table.insert(result, bold and "[" .. tab .. "]" or tab)
+      end
+    end
+    return result
+  end
+
+  require "harpoon" -- Neovim loads it right after startup (headless Neovim doesn't)
+  expect("no Harpoon files: no tabline", vim.o.showtabline, 0)
+
+  open "a.txt"
+  keys " a"
+  expect("<Leader>a shows the file as a tab", { vim.o.showtabline, tabs() }, { 2, { "[1 a.txt]" } })
+  open "b.txt"
+  keys " a"
+  expect("... the next one after it, highlighted while you're in it", tabs(), { "1 a.txt", "[2 b.txt]" })
+  open "c.txt"
+  expect("other files you open (gd, pickers, ...) don't get a tab", tabs(), { "1 a.txt", "2 b.txt" })
+  keys " 1"
+  expect("<Leader>1 goes to tab 1", tabs(), { "[1 a.txt]", "2 b.txt" })
+
+  in_menu "ddp"
+  expect("reordering in the <Leader><Tab> menu reorders the tabs", tabs(), { "1 b.txt", "[2 a.txt]" })
+  _G.heirline_harpoon_tab(1, 1, "l", "")
+  expect("clicking a tab opens its file", vim.fn.expand "%:t", "b.txt")
+
+  open "one/init.lua"
+  keys " a"
+  open "two/init.lua"
+  keys " a"
+  expect(
+    "files with the same name also show their folder",
+    tabs(),
+    { "1 b.txt", "2 a.txt", "3 one/init.lua", "[4 two/init.lua]" }
+  )
+
+  vim.fn.chdir(tmp)
+  expect("another folder has its own Harpoon files (here none: no tabline)", vim.o.showtabline, 0)
+  vim.fn.chdir(project)
+  expect("... and back", #tabs(), 4)
+
+  in_menu "ggdG"
+  expect("removing every file in the menu hides the tabline", vim.o.showtabline, 0)
+  vim.cmd.tabnew()
+  expect(
+    "a second Neovim tab shows the tabline, with the tab numbers",
+    { vim.o.showtabline, tabs() },
+    { 2, { "1", "2" } }
+  )
+  vim.cmd.tabclose()
+  expect("... and closing it hides it again", vim.o.showtabline, 0)
+  check("no errors", no_errors())
+end
+
 -- ── Run the group named in $GROUP ──────────────────────────────────────────────────────────────
 
 vim.wait(1000) -- let plugins that load after startup finish

@@ -2,7 +2,7 @@
 # Tests the features of this Neovim config (tests/features.lua), using your real config.
 #
 #   tests/run.sh               every group
-#   tests/run.sh review disk   only some: editing pickers git review discard disk
+#   tests/run.sh review disk   only some: editing pickers git review discard disk harpoon
 #
 # Each group runs in its own headless Neovim, in throwaway git repos in a temp folder. Your files,
 # repos and clipboard aren't touched, and no recent-files list or undo files are written.
@@ -10,7 +10,7 @@ set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 groups=("$@")
-[ ${#groups[@]} -gt 0 ] || groups=(editing pickers git review discard disk)
+[ ${#groups[@]} -gt 0 ] || groups=(editing pickers git review discard disk harpoon)
 
 failures=0
 for group in "${groups[@]}"; do

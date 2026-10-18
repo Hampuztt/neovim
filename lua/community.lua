@@ -16,7 +16,7 @@ return {
   -- tools
   { import = "astrocommunity.docker.lazydocker" },
   { import = "astrocommunity.markdown-and-latex.render-markdown-nvim" },
-  { import = "astrocommunity.recipes.disable-tabline" }, -- no buffer tabs at the top
+  { import = "astrocommunity.recipes.disable-tabline" }, -- no buffer tabs (the top shows Harpoon files, heirline.lua)
 
   -- worth a look:
   -- { import = "astrocommunity.color.transparent-nvim" },
