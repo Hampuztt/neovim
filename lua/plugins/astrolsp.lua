@@ -21,7 +21,8 @@ return {
       format_on_save = { enabled = false }, -- format by hand with <Leader>=
       timeout_ms = 3000,
       -- Servers that shouldn't format. Lua is formatted by stylua. Delete "lemminx" to format XML.
-      disabled = { "lua_ls", "lemminx" },
+      -- make_ls removes spaces at line ends, which in a Makefile can be part of a variable's value.
+      disabled = { "lua_ls", "lemminx", "make_ls" },
     },
     -- Settings passed to `vim.lsp.config` for each server (see `:h vim.lsp.Config`)
     config = {
@@ -35,6 +36,13 @@ return {
             analysis = { typeCheckingMode = "standard" },
           },
         },
+      },
+      -- Makefiles. nvim-lspconfig doesn't know make-ls, so this says how to start it (Mason installs
+      -- it: mason.lua). Included files are only found inside the root, so prefer the git repo.
+      make_ls = {
+        cmd = { "make-ls" },
+        filetypes = { "make" },
+        root_markers = { ".git", "Makefile", "makefile", "GNUmakefile" },
       },
       -- XML (formatting is off: see `disabled` above).
       -- All settings: https://github.com/redhat-developer/vscode-xml/blob/main/docs/Preferences.md

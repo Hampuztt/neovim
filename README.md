@@ -10,6 +10,7 @@
 | editor options, autocommands, treesitter | `lua/plugins/astrocore.lua`            |
 | language servers, formatting             | `lua/plugins/astrolsp.lua`             |
 | tools Mason installs                     | `lua/plugins/mason.lua`                |
+| Mason packages not in Mason's registry   | `lua/mason-packages/`                  |
 | colorscheme                              | `lua/plugins/astroui.lua`              |
 | statusline, Harpoon tabs at the top      | `lua/plugins/heirline.lua`             |
 | file picker (Snacks) settings            | `lua/plugins/snacks.lua`               |
@@ -52,7 +53,8 @@ missing. Ubuntu package names are in brackets.
 | Python 3 with venv + pip [`python3-venv python3-pip`] | Mason installs basedpyright and ansible-lint into Python venvs |
 
 Mason installs the rest itself: lua-language-server, basedpyright, ruff, clangd, stylua,
-tree-sitter-cli (treesitter needs 0.26.1+), and the tools of the AstroCommunity packs.
+tree-sitter-cli (treesitter needs 0.26.1+), make-ls (from `lua/mason-packages/`), and the tools of
+the AstroCommunity packs.
 
 ### For specific features
 
@@ -78,12 +80,13 @@ tree-sitter-cli (treesitter needs 0.26.1+), and the tools of the AstroCommunity 
 
 `tests/run.sh` tries the features of this config with your real config (about 10 seconds):
 editing keys, the find/grep pickers, git history/blame/compare, the branch review (`<Leader>gm`),
-undoable discards in the git status window, the CHANGED ON DISK badge, the Harpoon tabs, and XML
-(lemminx starts, no hint on files without a schema, errors for broken tags, formatting off but working).
+undoable discards in the git status window, the CHANGED ON DISK badge, the Harpoon tabs, XML
+(lemminx starts, no hint on files without a schema, errors for broken tags, formatting off but working)
+and Makefiles (make-ls starts, hints, `gd` into included files).
 
 ```bash
 tests/run.sh               # everything
-tests/run.sh review disk   # some groups: editing pickers git review discard disk harpoon xml
+tests/run.sh review disk   # some groups: editing pickers git review discard disk harpoon xml make
 ```
 
 Each group runs in its own headless Neovim in throwaway git repos, so your files, repos, clipboard,

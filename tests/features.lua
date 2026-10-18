@@ -701,6 +701,38 @@ function groups.xml()
   check("no errors from lemminx", no_errors() and not server_errors "lemminx")
 end
 
+-- ── Makefiles (make-ls language server: lua/mason-packages/, settings in astrolsp.lua) ────────────
+
+function groups.make()
+  local repo = new_repo "make"
+  write(repo .. "/common.mk", { "CXX ?= g++", "WARN := -Wall" })
+
+  local client = open_with_server(repo .. "/app/Makefile", {
+    "include ../common.mk",
+    "",
+    "all: demo",
+    "",
+    "demo: main.cpp",
+    "\t$(CXX) $(WARN) -o $@ $<",
+  }, "make_ls")
+  check("make-ls starts in Makefiles and checks them", client ~= nil)
+  expect(
+    "... with the git repo as its root (so it finds included files in other folders)",
+    client and client.root_dir,
+    repo
+  )
+  expect("a target that looks like it should be .PHONY gets a hint", client and diagnostic_lines(), { 3 })
+
+  vim.api.nvim_win_set_cursor(0, { 6, (vim.fn.getline(6):find "WARN") })
+  keys "gd"
+  wait(function() return vim.fn.expand "%:t" == "common.mk" end)
+  expect("gd on a variable jumps to where it's set, in the included file", { vim.fn.expand "%:t", vim.fn.line "." }, {
+    "common.mk",
+    2,
+  })
+  check("no errors from make-ls", no_errors() and not server_errors "make_ls")
+end
+
 -- ── Run the group named in $GROUP ──────────────────────────────────────────────────────────────
 
 vim.wait(1000) -- let plugins that load after startup finish
