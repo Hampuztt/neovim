@@ -16,7 +16,7 @@
 | file picker (Snacks) settings            | `lua/plugins/snacks.lua`               |
 | language packs (AstroCommunity)          | `lua/community.lua`                    |
 | what `<F5>` runs per filetype            | `lua/run_file.lua`                     |
-| branch review (`<Leader>gm`)             | `lua/git_review.lua`                   |
+| branch review (`<Leader>gr`)             | `lua/git_review.lua`                   |
 | my own snippets                          | `luasnippets/<filetype>.lua`           |
 | AstroNvim version                        | `lua/lazy_setup.lua`                   |
 
@@ -79,7 +79,7 @@ the AstroCommunity packs.
 ## Tests
 
 `tests/run.sh` tries the features of this config with your real config (about 10 seconds):
-editing keys, the find/grep pickers, git history/blame/compare, the branch review (`<Leader>gm`),
+editing keys, the find/grep pickers, git history/blame/compare, the branch review (`<Leader>gr`),
 undoable discards in the git status window, the CHANGED ON DISK badge, the Harpoon tabs, XML
 (lemminx starts, no hint on files without a schema, errors for broken tags, formatting off but working)
 and Makefiles (make-ls starts, hints, `gd` into included files).

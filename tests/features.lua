@@ -166,8 +166,8 @@ function groups.editing()
   keys " rd"
   check("<Leader>rd can be used again", no_errors())
 
-  local keymaps = { { "n", " fd" }, { "n", " fD" }, { "n", " fI" }, { "x", " fc" }, { "n", " gB" }, { "n", " gC" } }
-  vim.list_extend(keymaps, { { "n", " gm" }, { "n", " gM" }, { "n", "]r" }, { "n", " gh" }, { "x", " gl" } })
+  local keymaps = { { "n", " fd" }, { "n", " fD" }, { "n", " fI" }, { "x", " fc" }, { "n", " gD" }, { "n", " gr" } }
+  vim.list_extend(keymaps, { { "n", "]e" }, { "n", "]r" }, { "n", " gh" }, { "x", " gl" } })
   for _, key in ipairs(keymaps) do
     local name = key[2]:gsub("^ ", "<Leader>")
     check(("key %s (%s mode) exists"):format(name, key[1]), vim.fn.maparg(key[2], key[1]) ~= "")
@@ -278,20 +278,27 @@ function groups.git()
   check("<Leader>gl shows the commit that last changed the line", shown)
   if popup then vim.api.nvim_win_close(popup, true) end
 
-  local picker = open_picker " gB"
+  local picker = open_picker " gD"
+  expect("<Leader>gD starts on the default branch", (picker:current() or {}).branch, "master")
   search(picker, "fix#42")
-  expect("<Leader>gB lists branches", (picker:current() or {}).branch, "fix#42")
+  expect("<Leader>gD lists branches", (picker:current() or {}).branch, "fix#42")
   picker:action "confirm"
   wait(function() return fugitive_text() ~= nil end)
-  expect("<Leader>gB shows the file on that branch (even with # in its name)", fugitive_text(), "f on fix#42")
+  expect("<Leader>gD shows the file on that branch (even with # in its name)", fugitive_text(), "f on fix#42")
+  local old_win = window_where(function(buf) return vim.api.nvim_buf_get_name(buf):match "^fugitive://" end)
+  expect("... on the left", old_win and vim.api.nvim_win_get_position(old_win)[2], 0)
   expect("choosing a branch doesn't check it out", git(repo, { "branch", "--show-current" }), "master")
 
   only()
   vim.cmd.edit(repo .. "/other.txt")
-  picker = open_picker " gC"
+  picker = open_picker " gD"
   wait(function() return picker:count() > 0 and not picker:is_active() end)
-  local messages = vim.tbl_map(function(item) return item.msg end, picker:items())
-  expect("<Leader>gC lists only the commits that changed this file", messages, { "touch other only", "add other" })
+  local commits = vim.tbl_filter(function(item) return not item.branch end, picker:items())
+  expect(
+    "... and after the branches, only the commits that changed this file",
+    vim.tbl_map(function(item) return item.msg end, commits),
+    { "touch other only", "add other" }
+  )
   close(picker)
 
   local url
@@ -303,7 +310,7 @@ function groups.git()
   check("x discards in the status window", (vim.fn.maparg("x", "n", false, true).desc or ""):match "Discard")
 end
 
--- ── Branch review (<Leader>gm, lua/git_review.lua) ─────────────────────────────────────────────
+-- ── Branch review (<Leader>gr, lua/git_review.lua) ─────────────────────────────────────────────
 
 function groups.review()
   local repo = new_repo "review"
@@ -320,7 +327,7 @@ function groups.review()
   write(repo .. "/a.txt", "a changed")
   os.remove(repo .. "/d.txt")
   os.rename(repo .. "/old_name.lua", repo .. "/new_name.lua")
-  long[7] = "config line 7 EDITED"
+  long[7], long[30] = "config line 7 EDITED", "config line 30 EDITED"
   write(repo .. "/new_name.lua", long)
   write(repo .. "/new.txt", "brand new")
   commit(repo, "feature work")
@@ -333,26 +340,36 @@ function groups.review()
   local review = require "git_review"
   vim.o.columns = 200 -- wide enough for the full labels (narrow windows get shorter ones)
 
-  local function start(k, query)
+  local function start(query) -- query: what to type in the picker (nil: take the branch it starts on)
     vim.cmd.edit(repo .. "/a.txt")
-    local picker = open_picker(k)
-    search(picker, query)
+    local picker = open_picker " gr"
+    if query then search(picker, query) end
     picker:action "confirm"
     wait(function() return review.is_open() end)
   end
   local function review_old_win()
     return window_where(function(_, w) return vim.wo[w].winbar:match "git_review'%.label" end)
   end
+  local function review_file_win()
+    return window_where(function(_, w) return vim.wo[w].winbar:match "git_review'%.file_label" end)
+  end
   local function winbar(win)
     return vim.api.nvim_eval_statusline(vim.wo[win].winbar, { winid = win, use_winbar = true }).str
   end
   local function old_side() -- text and label of the old version
-    local win = window_where(function(_, w) return vim.wo[w].winbar:match "git_review'%.label" end)
+    local win = review_old_win()
     return win and { text(vim.api.nvim_win_get_buf(win)), vim.trim(winbar(win)) }
   end
+  local function at() return { vim.fn.expand "%:t", vim.fn.line "." } end -- file and line of the cursor
+  local function loaded(name) return vim.api.nvim_buf_is_loaded(vim.fn.bufnr(repo .. "/" .. name)) end
 
-  start(" gm", "master")
-  expect("<Leader>gm lists every file the branch changed (from where it split off master)", quickfix_files(), {
+  vim.cmd.edit(repo .. "/a.txt")
+  local your_tab, your_win = vim.api.nvim_get_current_tabpage(), vim.api.nvim_get_current_win()
+  local picker = open_picker " gr"
+  expect("<Leader>gr starts on the default branch", (picker:current() or {}).branch, "master")
+  picker:action "confirm"
+  wait(function() return review.is_open() end)
+  expect("it lists every file the branch changed (from where it split off master)", quickfix_files(), {
     "a.txt (modified)",
     "b.txt (modified)",
     "d.txt (deleted)",
@@ -360,8 +377,20 @@ function groups.review()
     "new_name.lua (renamed from old_name.lua)",
     "u.txt (new, not added to git yet)",
   })
+  check("... in a tab of its own", vim.api.nvim_get_current_tabpage() ~= your_tab)
   local label = "master, where your branch started (" .. git(repo, { "merge-base", "master", "HEAD" }):sub(1, 7) .. ")"
   expect("a changed file is shown next to its old version", old_side(), { "a original", label })
+  local old_win, file_win = review_old_win(), review_file_win()
+  expect(
+    "... the old version on the left",
+    { vim.api.nvim_win_get_position(old_win)[2], vim.api.nvim_win_get_position(file_win)[2] > 0 },
+    { 0, true }
+  )
+  expect(
+    "... and above your version: which file, and how far in",
+    vim.trim(winbar(file_win)),
+    "a.txt  ·  modified  ·  file 1 of 6"
+  )
   keys "]r"
   expect("]r: next file (uncommitted change)", old_side(), { "b original", label })
   keys "]r"
@@ -375,9 +404,28 @@ function groups.review()
   for lnum = 1, 40 do
     if vim.fn.diff_hlID(lnum, 1) > 0 then changed = changed + 1 end
   end
-  expect("... and only its edited line shows as changed", changed, 1)
+  expect("... and only its edited lines show as changed", changed, 2)
+  expect("the cursor starts on the file's first change", at(), { "new_name.lua", 7 })
+
+  local file_buf, old_buf = vim.api.nvim_get_current_buf(), vim.api.nvim_win_get_buf(review_old_win())
+  wait(function() return #vim.lsp.get_clients { bufnr = file_buf, name = "lua_ls" } > 0 end, 15000)
+  vim.wait(500)
+  expect(
+    "language servers check your version, but not the old one",
+    { #vim.lsp.get_clients { bufnr = file_buf } > 0, #vim.lsp.get_clients { bufnr = old_buf } },
+    { true, 0 }
+  )
+
+  keys "]e"
+  expect("]e: next change", at(), { "new_name.lua", 30 })
+  keys "]e"
+  expect("]e after a file's last change: the next file", at(), { "u.txt", 1 })
+  expect("... comparing it with nothing", old_side(), { "", "new file, not in master" })
+  keys "[e"
+  expect("[e before a file's first change: the previous file's last change", at(), { "new_name.lua", 30 })
+  keys "[e"
+  expect("[e: previous change", at(), { "new_name.lua", 7 })
   keys "]r"
-  expect("an untracked file is compared with nothing", old_side(), { "", "new file, not in master" })
   keys "]r"
   expect("]r on the last file says so", last_message(), "Last changed file (6 of 6)")
   keys "[r"
@@ -397,16 +445,16 @@ function groups.review()
     vim.bo[vim.api.nvim_win_get_buf(terminal)].buftype == "terminal"
   )
 
-  check("the key reminder shows above the file list", review.winbar():match "%]r %[r" ~= nil)
+  check("the key reminder shows above the file list", review.winbar():match "%]e %[e" ~= nil)
   local list_win = window_where(function(_, w) return vim.fn.win_gettype(w) == "quickfix" end)
   vim.o.columns = 60
   expect(
-    "in a narrow window the key reminder is shortened, keeping ]r [r",
+    "in a narrow window the key reminder is shortened, keeping ]e [e and ]r [r",
     vim.trim(winbar(list_win)),
-    "]r [r  next/prev file  ·  <Leader>gm  close"
+    "]e [e  next/prev change  ·  ]r [r  next/prev file"
   )
   vim.o.columns = 200
-  local old_win = review_old_win()
+  old_win = review_old_win()
   vim.api.nvim_win_set_width(old_win, 25)
   expect("... and so is the old version's label", vim.trim(winbar(old_win)), "master (old version)")
   vim.api.nvim_win_set_width(old_win, 4)
@@ -415,17 +463,54 @@ function groups.review()
   vim.cmd "0Gclog"
   expect("... but not while the list window shows something else", review.winbar(), "")
   keys "]r"
-  check("]r brings the review's list back", review.winbar():match "%]r %[r" ~= nil)
+  check("]r brings the review's list back", review.winbar():match "%]e %[e" ~= nil)
 
-  keys " gm"
-  check("<Leader>gm again closes the review", not review.is_open())
-  check("... and only the review's windows", vim.api.nvim_win_is_valid(status) and vim.api.nvim_win_is_valid(terminal))
+  vim.api.nvim_set_current_tabpage(your_tab)
+  keys " gr"
+  check("<Leader>gr in another tab takes you back to the review", review.in_review_tab())
+  keys " gr"
+  check("<Leader>gr in the review closes it", not review.is_open())
+  expect(
+    "... and its tab, back to yours",
+    { #vim.api.nvim_list_tabpages(), vim.api.nvim_get_current_win() },
+    { 1, your_win }
+  )
+  expect(
+    "... closing the files it opened, but not the one you had open",
+    { loaded "a.txt", loaded "b.txt", loaded "new_name.lua" },
+    { true, false, false }
+  )
+
+  start()
+  list_win = window_where(function(_, w) return vim.fn.win_gettype(w) == "quickfix" end)
+  vim.api.nvim_set_current_win(list_win)
+  vim.api.nvim_win_set_cursor(list_win, { 3, 0 })
+  keys "<CR>"
+  expect(
+    "<CR> in the file list shows that file",
+    { vim.fn.expand "%:t", old_side() },
+    { "d.txt", { "d original", label } }
+  )
+  vim.api.nvim_set_current_win(list_win)
+  keys "q"
+  check("q in the file list closes the review", not review.is_open() and #vim.api.nvim_list_tabpages() == 1)
+
+  start()
+  vim.api.nvim_win_close(review_file_win(), true) -- by hand, leaving only the old version's window
+  vim.api.nvim_win_close(window_where(function(_, w) return vim.fn.win_gettype(w) == "quickfix" end), true)
+  keys "]r"
+  expect(
+    "]r with only the old version's window left shows the next file in it",
+    { #vim.api.nvim_list_tabpages(), vim.fn.expand "%:t", old_side() },
+    { 2, "b.txt", { "b original", label } }
+  )
+  review.stop()
 
   only()
-  start(" gM", "base")
-  expect("<Leader>gM reviews everything since a commit", #vim.fn.getqflist(), 6)
+  start "base"
+  expect("<Leader>gr can also review everything since a commit", #vim.fn.getqflist(), 6)
   vim.cmd "cclose" -- close the review by hand: the file list, then the old version
-  local old_win = window_where(function(buf) return vim.api.nvim_buf_get_name(buf):match "^fugitive://" end)
+  old_win = window_where(function(buf) return vim.api.nvim_buf_get_name(buf):match "^fugitive://" end)
   if old_win then vim.api.nvim_win_close(old_win, true) end
   vim.cmd "tabnew"
   local tab = vim.api.nvim_get_current_tabpage()
@@ -433,25 +518,26 @@ function groups.review()
   expect(
     "]r after that, in another tab, says so and stays in your tab",
     { last_message(), vim.api.nvim_get_current_tabpage() == tab },
-    { "No review open (<Leader>gm starts one)", true }
+    { "No review open (<Leader>gr starts one)", true }
   )
-  vim.cmd "tabclose"
-  local picker = open_picker " gm"
-  check("a review closed by hand doesn't need <Leader>gm twice", picker ~= nil)
+  vim.cmd "tabonly"
+  picker = open_picker " gr"
+  check("a review closed by hand doesn't need <Leader>gr twice", picker ~= nil)
   if picker then close(picker) end
 
   local clean = new_repo "clean"
   write(clean .. "/x.txt", "x")
   commit(clean, "only commit")
   vim.cmd.edit(clean .. "/x.txt")
-  picker = open_picker " gm"
+  picker = open_picker " gr"
   search(picker, "master")
   picker:action "confirm"
   wait(function() return last_message():match "No changes" end)
   expect("nothing to review: says so", last_message(), "No changes compared with master")
   check(
-    "... and leaves no empty list window",
-    window_where(function(_, w) return vim.fn.win_gettype(w) == "quickfix" end) == nil
+    "... and opens no tab or empty list window",
+    #vim.api.nvim_list_tabpages() == 1
+      and window_where(function(_, w) return vim.fn.win_gettype(w) == "quickfix" end) == nil
   )
 
   -- A file taken out of git but still there (git rm --cached), and a submodule moved to a newer commit
@@ -467,8 +553,7 @@ function groups.review()
   write(mixed .. "/lib/more.txt", "more")
   commit(mixed .. "/lib", "newer lib")
   vim.cmd.edit(mixed .. "/notes.txt")
-  picker = open_picker " gm"
-  search(picker, "master")
+  picker = open_picker " gr"
   picker:action "confirm"
   wait(function() return review.is_open() end)
   expect("a file taken out of git (but still there) is listed once", quickfix_files(), { "notes.txt (deleted)" })
@@ -477,6 +562,30 @@ function groups.review()
     last_message(),
     "Reviewing 1 changed files vs master (changed submodules aren't shown: lib)"
   )
+  review.stop()
+
+  -- Neovim 0.12.6 crashed when one side of a diff with a markdown file closed (render-markdown):
+  -- moving past a new markdown file, :only, :tabclose (astrocore.lua ends the diff first)
+  local docs = new_repo "docs"
+  write(docs .. "/a.txt", "a")
+  commit(docs, "base")
+  git(docs, { "checkout", "-q", "-b", "feature" })
+  write(docs .. "/b.md", { "# New", "", "text" })
+  write(docs .. "/c.txt", "c")
+  commit(docs, "docs")
+  vim.cmd.edit(docs .. "/a.txt")
+  for _, close_it in ipairs { "]r", "only", "tabclose" } do
+    picker = open_picker " gr"
+    picker:action "confirm"
+    wait(function() return review.is_open() end)
+    if close_it == "]r" then
+      keys "]r"
+      review.stop()
+    else
+      vim.cmd(close_it)
+    end
+  end
+  check("closing one side of a markdown diff doesn't crash Neovim", true) -- (a crash ends the test run)
   check("no errors", no_errors())
 end
 

@@ -64,34 +64,59 @@ local function in_this_files_folder(picker)
   require("snacks").picker[picker] { cwd = dir }
 end
 
--- Pick a branch ("git_branches", remote ones too) or commit ("git_log", or "git_log_file" for only the
--- commits that changed the current file), typing to search names / commit messages, and pass it to
--- on_pick. (Instead of the pickers' default action, `git checkout`.)
-local function pick_git_ref(source, title, on_pick)
+-- The branch you'd usually compare with: the default branch (main / master), or its remote version
+-- (origin/main) while you're on it, to see what you haven't pushed. Named like the branch picker does.
+local function usual_branch(root)
+  local function git(...)
+    local result = vim.system({ "git", "-C", root, ... }, { text = true }):wait()
+    return result.code == 0 and vim.trim(result.stdout) or nil
+  end
+  local remote = git("symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD") -- e.g. "origin/main"
+  local name = remote and remote:match "^origin/(.+)$"
+    or (git("rev-parse", "--verify", "--quiet", "refs/heads/main") and "main")
+    or "master"
+  local is_local = git("rev-parse", "--verify", "--quiet", "refs/heads/" .. name) ~= nil
+  if remote and (not is_local or git("branch", "--show-current") == name) then return "remotes/" .. remote end
+  return name
+end
+
+-- Pick what to compare with, typing to search names / commit messages, and pass it to on_pick: the
+-- usual branch first so <CR> is enough, then the other branches (remote ones too), then the commits
+-- (only those that changed the current file when `this_file`). (Instead of the pickers' `git checkout`.)
+local function pick_git_ref(title, this_file, on_pick)
   -- The current file's repo, which isn't always the one Neovim's working folder is in
   local root = vim.fn.FugitiveWorkTree()
   if root == "" then return vim.notify("Not in a git repository", vim.log.levels.WARN) end
-  require("snacks").picker[source] {
+  local usual = usual_branch(root)
+  require("snacks").picker.pick {
     title = title,
     cwd = root,
-    all = source == "git_branches" or nil,
+    multi = { { source = "git_branches", all = true }, this_file and "git_log_file" or "git_log" },
+    -- Sorted even before you type (sort_empty), by score: the usual branch gets extra, the rest ties
+    -- and stays in the order it came (idx: branches, then commits)
+    transform = function(item)
+      if item.branch == usual then item.score_add = 1 end
+    end,
+    matcher = { sort_empty = true },
+    sort = { fields = { "score:desc", "idx" } },
     confirm = function(picker, item)
       picker:close()
-      if item then on_pick(item.branch or item.commit, root) end
+      if item then on_pick(item.branch and item.branch:gsub("^remotes/", "") or item.commit, root) end
     end,
   }
 end
 
--- <Leader>gB / <Leader>gC: this file side by side with its version on a branch / at a commit
--- (fugitive's :Gvdiffsplit). :q in the old version closes it.
-local function compare_file_with(ref) vim.cmd("Gvdiffsplit " .. vim.fn.fnameescape(ref)) end
+-- <Leader>gD: this file next to its version on a branch / at a commit (fugitive's :Gvdiffsplit), the
+-- old version on the left like in the review. :q in the old version closes it.
+local function compare_file_with(ref) vim.cmd("leftabove Gvdiffsplit " .. vim.fn.fnameescape(ref)) end
 
--- <Leader>gm / <Leader>gM: go through every file this branch changed, compared with a branch / commit
--- (lua/git_review.lua). Pressing it again closes the review.
-local function toggle_review(source, title)
+-- <Leader>gr: go through every file this branch changed (lua/git_review.lua), in a tab of its own.
+-- With a review open it takes you back to it, and pressed in the review's tab it closes it.
+local function review_key()
   local review = require "git_review"
-  if review.is_open() then return review.stop() end
-  pick_git_ref(source, title, review.start)
+  if not review.is_open() then return pick_git_ref("Review changes vs", false, review.start) end
+  if review.in_review_tab() then return review.stop() end
+  review.focus()
 end
 
 -- J: join lines, keeping the cursor where it is. A count joins that many lines (3J joins three).
@@ -162,24 +187,16 @@ local general = {
     -- x or X discards, cc commits, g? lists every key.
     ["<Leader>gs"] = { "<Cmd>vert Git<CR>", desc = "Git status (vertical split)" },
     ["<Leader>gS"] = { "<Cmd>Git<CR>", desc = "Git status (horizontal split)" },
-    ["<Leader>gd"] = { "<Cmd>Gvdiffsplit<CR>", desc = "Git diff split" },
-    ["<Leader>gB"] = {
-      function() pick_git_ref("git_branches", "Compare this file with branch", compare_file_with) end,
-      desc = "Compare this file with a branch",
+    ["<Leader>gd"] = { "<Cmd>Gvdiffsplit<CR>", desc = "Diff this file vs its staged / committed version" },
+    ["<Leader>gD"] = {
+      function() pick_git_ref("Compare this file with", true, compare_file_with) end,
+      desc = "Diff this file vs a branch or commit",
     },
-    ["<Leader>gC"] = {
-      function() pick_git_ref("git_log_file", "Compare this file with commit", compare_file_with) end,
-      desc = "Compare this file with a commit (that changed it)",
-    },
-    -- Review a branch: the changed files are listed at the bottom, the keys are shown above that list
-    ["<Leader>gm"] = {
-      function() toggle_review("git_branches", "Review this branch against") end,
-      desc = "Review: every file changed vs a branch (again: close)",
-    },
-    ["<Leader>gM"] = {
-      function() toggle_review("git_log", "Review changes since commit") end,
-      desc = "Review: every file changed since a commit (again: close)",
-    },
+    -- Review a branch: the changed files are listed at the bottom, the keys are shown above that list.
+    -- In the list: <CR> shows the file under the cursor, q closes the review.
+    ["<Leader>gr"] = { review_key, desc = "Review every file changed vs a branch/commit (in it: close)" },
+    ["]e"] = { function() require("git_review").change(1) end, desc = "Next change (review: on to next file)" },
+    ["[e"] = { function() require("git_review").change(-1) end, desc = "Previous change (review: back a file)" },
     ["]r"] = { function() require("git_review").move(1) end, desc = "Review: next changed file" },
     ["[r"] = { function() require("git_review").move(-1) end, desc = "Review: previous changed file" },
     -- Blame. In <Leader>gb's window: <CR> on a line opens the commit that changed it, - shows the
@@ -331,9 +348,7 @@ local disabled = {
     "<Leader>ls",
     "<Leader>lS",
     "gl", -- line diagnostics
-    "]e", -- next/previous error and warning
-    "[e",
-    "]w",
+    "]w", -- next/previous warning (]e / [e are your next/previous change)
     "[w",
     "gra", -- Neovim's LSP keys (they would make your `gr` wait for more keys)
     "grn",

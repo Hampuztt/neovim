@@ -79,6 +79,28 @@ return {
           callback = function(args) vim.b[args.buf].changed_on_disk = nil end,
         },
       },
+      -- Neovim (0.12.6) can crash when one side of a side-by-side diff closes (:q, :only, :tabclose,
+      -- the review moving on) while a markdown file is in it: render-markdown reacts to the diff being
+      -- updated halfway through the close. Closing one of two diff windows ends the diff anyway
+      -- ('diffopt' has "closeoff"), so end it first, on both sides, before the window goes.
+      end_diff_before_closing = {
+        {
+          event = "WinClosed",
+          desc = "End a diff before one of its two windows closes (avoids a crash)",
+          callback = function(args)
+            local win = tonumber(args.match)
+            if not (win and vim.api.nvim_win_is_valid(win) and vim.wo[win].diff) then return end
+            local others = vim.tbl_filter(
+              function(other) return other ~= win and vim.wo[other].diff end,
+              vim.api.nvim_tabpage_list_wins(vim.api.nvim_win_get_tabpage(win))
+            )
+            if #others ~= 1 then return end
+            for _, side in ipairs { win, others[1] } do
+              vim.api.nvim_win_call(side, vim.cmd.diffoff)
+            end
+          end,
+        },
+      },
       -- Hide the cursorline highlight while typing in insert mode.
       cursorline_in_insert_mode = {
         {
