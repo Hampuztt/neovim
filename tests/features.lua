@@ -96,6 +96,10 @@ end
 local function alt_u_bound(picker)
   return vim.api.nvim_win_call(picker.input.win.win, function() return vim.fn.maparg("<A-u>", "i") ~= "" end)
 end
+local function footer(picker) -- the text under the search box
+  local parts = vim.api.nvim_win_get_config(picker.input.win.win).footer or {}
+  return vim.trim(table.concat(vim.tbl_map(function(part) return part[1] end, parts)))
+end
 
 local function quickfix_files() -- "name (what changed)" for each entry
   return vim.tbl_map(
@@ -183,6 +187,7 @@ function groups.pickers()
   local project = tmp .. "/project"
   write(project .. "/sub/deep/file.txt", "needle here")
   write(project .. "/top.txt", "nothing")
+  write(project .. "/notes.md", "needle too")
   vim.fn.chdir(project)
   vim.cmd.edit(project .. "/sub/deep/file.txt")
   local config = vim.fn.stdpath "config"
@@ -196,6 +201,7 @@ function groups.pickers()
   picker = open_picker " ff"
   expect("<Leader>ff in the working folder has a plain title", picker.title, "Files")
   check("Alt-u works in file pickers", alt_u_bound(picker))
+  expect("... with no grep hints under the search box", footer(picker), "")
   close(picker)
 
   picker = open_picker " fi"
@@ -208,16 +214,57 @@ function groups.pickers()
   expect("<Leader>fI greps this file's folder", picker.title, "Grep in " .. project .. "/sub/deep")
   search(picker, "needle")
   expect("<Leader>fI finds text there", picker:count(), 1)
+  check("grep pickers show the ripgrep hints under the search box", footer(picker):match "^%-%-  rg flags" ~= nil)
+  close(picker)
+
+  picker = open_picker " fw"
+  search(picker, "needle")
+  expect("<Leader>fw greps the whole project", picker:count(), 2)
+  check("... and its hints offer only this file's kind", footer(picker):match "<A%-t>  only %*%.txt" ~= nil)
+  keys "<A-t>"
+  wait(function() return picker:count() == 1 and not picker:is_active() end)
+  expect("Alt-t keeps only files like this one (*.txt)", { picker:count(), picker.opts.glob }, { 1, "*.txt" })
+  keys "<A-t>"
+  wait(function() return picker:count() == 2 and not picker:is_active() end)
+  expect("Alt-t again searches every file", { picker:count(), picker.opts.glob }, { 2, nil })
   close(picker)
 
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
   keys "ve"
   picker = open_picker " fc"
   expect("<Leader>fc in visual mode greps the selection", picker.input.filter.search, "needle")
+  check("... with the hints too", footer(picker):match "^%-%-  rg flags" ~= nil)
   close(picker)
 
   picker = open_picker " fb"
   check("Alt-u is only in file and grep pickers (not in buffers)", not alt_u_bound(picker))
+  close(picker)
+
+  -- tmux takes Ctrl-a before Neovim sees it: the picker key on it lives elsewhere
+  picker = open_picker " ff"
+  keys "<A-a>"
+  expect("Alt-a selects every result (Ctrl-a is tmux's prefix)", #picker:selected(), picker:count())
+  local bound = vim.api.nvim_win_call(
+    picker.input.win.win,
+    function() return { vim.fn.maparg("<C-a>", "i"), vim.fn.maparg("<A-d>", "i"), vim.fn.maparg("<A-h>", "i") ~= "" } end
+  )
+  expect("... Ctrl-a and rarely used keys are gone, Alt-h (hidden files) stays", bound, { "", "", true })
+  if vim.api.nvim_win_call(picker.input.win.win, function() return vim.fn.mode() end) == "i" then keys "<Esc>" end
+  keys "?"
+  local function help_buf() -- the key list is a floating window; window_where() only looks at normal ones
+    return vim.iter(vim.api.nvim_list_bufs()):find(function(b) return vim.bo[b].filetype == "snacks_win_help" end)
+  end
+  wait(function() return help_buf() ~= nil end)
+  vim.wait(200) -- the <M-x> -> <A-x> rewrite is scheduled
+  local shown = {}
+  local ns = vim.api.nvim_create_namespace "snacks.win.help"
+  for _, mark in ipairs(help_buf() and vim.api.nvim_buf_get_extmarks(help_buf(), ns, 0, -1, { details = true }) or {}) do
+    for _, chunk in ipairs(mark[4].virt_text or {}) do
+      shown[#shown + 1] = chunk[1]
+    end
+  end
+  shown = table.concat(shown, " ")
+  check("<Esc> ? lists the keys, with Alt written as <A-x>", shown:match "<A%-a>" ~= nil and not shown:match "<M%-")
   close(picker)
 end
 
