@@ -2,7 +2,7 @@
 # Tests the features of this Neovim config (tests/features.lua), using your real config.
 #
 #   tests/run.sh               every group
-#   tests/run.sh review disk   only some: editing pickers git review discard disk harpoon xml make
+#   tests/run.sh review disk   only some: editing pickers git review discard disk harpoon xml make cmake
 #
 # Each group runs in its own headless Neovim, in throwaway git repos in a temp folder. Your files,
 # repos and clipboard aren't touched, and no recent-files list or undo files are written.
@@ -10,7 +10,7 @@ set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 groups=("$@")
-[ ${#groups[@]} -gt 0 ] || groups=(editing pickers git review discard disk harpoon xml make)
+[ ${#groups[@]} -gt 0 ] || groups=(editing pickers git review discard disk harpoon xml make cmake)
 
 # Start the tests once Neovim has finished starting up (VimEnter), like when you use it: before that,
 # language servers don't start in files that are already open. Scheduled, so they don't run inside

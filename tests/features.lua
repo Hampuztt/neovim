@@ -939,6 +939,99 @@ function groups.make()
   check("no errors from make-ls", no_errors() and not server_errors "make_ls")
 end
 
+-- ── CMake (neocmakelsp: the cmake pack in community.lua, root in astrolsp.lua) ─────────────────
+
+function groups.cmake()
+  local repo = new_repo "cmake"
+  write(repo .. "/cmake/helpers.cmake", { "set(MY_FLAGS -Wall)" })
+
+  -- neocmakelsp sends a file's problems only when Neovim asks for them (pull diagnostics), so
+  -- open_with_server (which waits for the server to send them by itself) never finishes for it.
+  local function open(path, lines)
+    write(path, lines)
+    vim.cmd.edit(path)
+    local buf = vim.api.nvim_get_current_buf()
+    wait(function() return #vim.lsp.get_clients { bufnr = buf, name = "neocmake" } > 0 end)
+    return vim.lsp.get_clients({ bufnr = buf, name = "neocmake" })[1], buf
+  end
+  -- It answers once it has read CMake's own commands and modules (the first time on a machine it
+  -- writes a cache of them, which takes a while), so keep asking until it does.
+  local function answer(request)
+    for _ = 1, 60 do
+      local value = request()
+      if value then return value end
+      vim.wait(500)
+    end
+  end
+
+  -- A CMakeLists.txt in a subfolder that has a build folder of its own: the root is still the repo
+  -- (root_markers in astrolsp.lua), so the server sees the whole project and not just that folder.
+  vim.fn.mkdir(repo .. "/src/build", "p")
+  local client = open(repo .. "/src/CMakeLists.txt", { "add_executable(demo main.cpp)" })
+  check("neocmakelsp starts in CMake files", client ~= nil)
+  expect(
+    "... with the git repo as its root, not the subfolder its build folder is in",
+    client and client.root_dir,
+    repo
+  )
+
+  local buf
+  client, buf = open(repo .. "/CMakeLists.txt", {
+    "cmake_minimum_required(VERSION 3.20)",
+    "project(demo)",
+    "include(cmake/helpers.cmake)",
+    "add_subdirectory(src)",
+  })
+  local function document() return vim.lsp.util.make_text_document_params(buf) end
+
+  local hover = answer(function() -- K on `project` (line 2)
+    local response = client:request_sync(
+      "textDocument/hover",
+      { textDocument = document(), position = { line = 1, character = 2 } },
+      3000,
+      buf
+    )
+    local value = response and response.result and response.result.contents and response.result.contents.value
+    return value ~= "" and value or nil
+  end)
+  check("hover on a command shows CMake's own documentation", (hover or ""):find("the name of the project", 1, true))
+
+  local typed = "set(X ${MY_" -- completing a variable set in the included module
+  vim.api.nvim_buf_set_lines(buf, -1, -1, false, { typed })
+  local line = vim.api.nvim_buf_line_count(buf) - 1
+  local labels = answer(function()
+    local response = client:request_sync("textDocument/completion", {
+      textDocument = document(),
+      position = { line = line, character = #typed },
+      context = { triggerKind = 1 },
+    }, 5000, buf)
+    local items = response and response.result and (response.result.items or response.result) or {}
+    return #items > 0 and vim.tbl_map(function(item) return item.label end, items) or nil
+  end) or {}
+  check("completion offers a variable from the module the file includes", vim.tbl_contains(labels, "MY_FLAGS"))
+  vim.api.nvim_buf_set_lines(buf, line, line + 1, false, {})
+
+  vim.api.nvim_win_set_cursor(0, { 3, (vim.fn.getline(3):find "cmake/") })
+  keys "gd"
+  wait(function() return vim.fn.expand "%:t" == "helpers.cmake" end)
+  expect("gd on an include() path opens the module", vim.fn.expand "%:t", "helpers.cmake")
+
+  local bad
+  client, bad = open(repo .. "/bad/CMakeLists.txt", { "add_executable(demo", "  main.cpp" })
+  wait(function() return #vim.diagnostic.get(bad) > 0 end)
+  expect("a command whose closing ) is missing is an error", diagnostic_lines(), { 1 })
+
+  client, buf = open(repo .. "/fmt/CMakeLists.txt", { "if(X)", "set(A 1)", "endif()" })
+  keys " ="
+  wait(function() return vim.fn.getline(2) == "  set(A 1)" end)
+  expect("<Leader>= indents what's inside if() by one shiftwidth", vim.api.nvim_buf_get_lines(buf, 0, -1, false), {
+    "if(X)",
+    "  set(A 1)",
+    "endif()",
+  })
+  check("no errors from neocmakelsp", no_errors() and not server_errors "neocmake")
+end
+
 -- ── Run the group named in $GROUP ──────────────────────────────────────────────────────────────
 
 vim.wait(1000) -- let plugins that load after startup finish

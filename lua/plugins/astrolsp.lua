@@ -64,6 +64,17 @@ return {
           filetypes = { "make" },
           root_markers = { ".git", "Makefile", "makefile", "GNUmakefile" },
         },
+        -- CMake (neocmakelsp, installed by the cmake pack in community.lua). nvim-lspconfig already
+        -- knows how to start it, so this only widens where the project starts: modules you include()
+        -- and subdirectories are only found inside the root, so prefer the git repo over the nearest
+        -- CMakeLists.txt. The groups are tried in order (`:h lsp-root_markers`).
+        neocmake = {
+          root_markers = {
+            { ".neocmake.toml", ".git" },
+            { "CMakePresets.json", "CMakeUserPresets.json", "build", "cmake" },
+            "CMakeLists.txt", -- last: in a project without git this is the folder you're in
+          },
+        },
         -- XML (formatting is off: see `disabled` above).
         -- All settings: https://github.com/redhat-developer/vscode-xml/blob/main/docs/Preferences.md
         lemminx = {

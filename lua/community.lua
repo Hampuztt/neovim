@@ -8,6 +8,7 @@ return {
   -- language packs (language server, formatter, treesitter parser, ...)
   { import = "astrocommunity.pack.lua" },
   { import = "astrocommunity.pack.bash" },
+  { import = "astrocommunity.pack.cmake" }, -- neocmakelsp: completion, hover, errors, formatting (root in astrolsp.lua)
   { import = "astrocommunity.pack.ansible" },
   { import = "astrocommunity.pack.docker" },
   { import = "astrocommunity.pack.html-css" },

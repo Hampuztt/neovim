@@ -81,12 +81,13 @@ the AstroCommunity packs.
 `tests/run.sh` tries the features of this config with your real config (about 10 seconds):
 editing keys, the find/grep pickers, git history/blame/compare, the branch review (`<Leader>gr`),
 undoable discards in the git status window, the CHANGED ON DISK badge, the Harpoon tabs, XML
-(lemminx starts, no hint on files without a schema, errors for broken tags, formatting off but working)
-and Makefiles (make-ls starts, hints, `gd` into included files).
+(lemminx starts, no hint on files without a schema, errors for broken tags, formatting off but working),
+Makefiles (make-ls starts, hints, `gd` into included files) and CMake (neocmakelsp starts with the
+repo as its root, hover, completion from included modules, errors, formatting).
 
 ```bash
 tests/run.sh               # everything
-tests/run.sh review disk   # some groups: editing pickers git review discard disk harpoon xml make
+tests/run.sh review disk   # some groups: editing pickers git review discard disk harpoon xml make cmake
 ```
 
 Each group runs in its own headless Neovim in throwaway git repos, so your files, repos, clipboard,
